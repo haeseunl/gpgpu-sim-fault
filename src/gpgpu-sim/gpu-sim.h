@@ -63,7 +63,16 @@
 #define DUMPLOG 333
 
 
+///////////////////////////////////////////////////////////
+class fault;
 
+extern int fault_injection_phase;
+extern int fault_injection_period;
+extern int fault_injection_number;
+extern std::ifstream fault_injection_read;
+extern std::ofstream fault_injection_write;
+extern std::vector<fault*> fault_injection_list;
+///////////////////////////////////////////////////////////
 
 
 enum dram_ctrl_t {

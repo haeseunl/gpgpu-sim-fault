@@ -97,7 +97,16 @@ unsigned int gpu_stall_icnt2sh = 0;
 
 #define MEM_LATENCY_STAT_IMPL
 
+///////////////////////////////////////////////////////////
+#include "fault_injection.h"
 
+int fault_injection_phase = 0;
+int fault_injection_period = 0;
+int fault_injection_number = 0;
+std::ifstream fault_injection_read;
+std::ofstream fault_injection_write;
+std::vector<fault*> fault_injection_list;
+///////////////////////////////////////////////////////////
 
 
 #include "mem_latency_stat.h"
@@ -437,6 +446,17 @@ void gpgpu_sim_config::reg_options(option_parser_t opp)
     option_parser_register(opp, "-trace_sampling_memory_partition", OPT_INT32, 
                           &Trace::sampling_memory_partition, "The memory partition which is printed using MEMPART_DPRINTF. Default -1 (i.e. all)",
                           "-1");
+
+    option_parser_register(opp, "-fault_injection_period", OPT_INT32,
+                          &fault_injection_period, "Fault injection period. Default -1 (i.e. all)",
+                          "-1");
+    option_parser_register(opp, "-fault_injection_number", OPT_INT32,
+                          &fault_injection_number, "Number of fault per period. Default -1 (i.e. all)",
+                          "-1");
+    option_parser_register(opp, "-fault_injection_phase", OPT_INT32,
+                          &fault_injection_phase, "Fault injection phase. Default 0 (i.e. all)",
+                          "0");
+
    ptx_file_line_stats_options(opp);
 }
 
@@ -1156,6 +1176,16 @@ unsigned long long g_single_step=0; // set this in gdb to single step the pipeli
 
 void gpgpu_sim::cycle()
 {
+
+	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
+	unsigned long long period = (unsigned long long)fault_injection_period;
+
+	if (!(tot_clk_cycle%period) && fault_injection_phase == 0) {
+		printf("[Fault injection] Create fault injection list..\n");
+		create_fault_list(tot_clk_cycle);
+	}
+
+
    int clock_mask = next_clock_domain();
 
    if (clock_mask & CORE ) {
@@ -1401,3 +1431,21 @@ simt_core_cluster * gpgpu_sim::getSIMTCluster()
    return *m_cluster;
 }
 
+//////////////////////////////////////////////////////////////////////
+void create_fault_list(unsigned long long base_clk) {
+	std::vector<unsigned long long> offset_clk;
+
+	for (int i=0; i<fault_injection_number; i++) {
+		offset_clk.push_back(rand()%fault_injection_period);
+	}
+	std::sort(offset_clk.begin(), offset_clk.end());
+
+	for (int i=0; i<fault_injection_number; i++) {
+		printf("offset_clk[%d]: %u\n", i, offset_clk[i]);
+	}
+
+	// Now create fault
+	for (int i=0; i<fault_injection_number; i++) {
+
+	}
+}
