@@ -53,6 +53,8 @@
     
 
 /////////////////////////////////////////////////////////////////////////////
+#include "fault_injection.h"
+/////////////////////////////////////////////////////////////////////////////
 
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
 {
@@ -1145,6 +1147,16 @@ int shader_core_ctx::test_res_bus(int latency){
 
 void shader_core_ctx::execute()
 {
+	///////////////////////////////////////////////////////////////////////////////////////////
+	// First, check whether the clock cycle is met or not.
+	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
+	if (fault_injection_list.size()>0) {
+		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk && this->get_sid()==fault_injection_list[0]->nSM) {
+			printf("[Fault injection] (SM: %d) Clock & SM match!! (SmID: %d | clk: %u | faulty-clk: %u)\n", this->get_sid(), fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk);
+			//fault_injection_list.erase(fault_injection_list.begin());
+		}
+	}
+	///////////////////////////////////////////////////////////////////////////////////////////
 	for(unsigned i=0; i<num_result_bus; i++){
 		*(m_result_bus[i]) >>=1;
 	}

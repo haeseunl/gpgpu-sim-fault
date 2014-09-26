@@ -98,7 +98,9 @@ unsigned int gpu_stall_icnt2sh = 0;
 #define MEM_LATENCY_STAT_IMPL
 
 ///////////////////////////////////////////////////////////
+#define ENABLE_FAULT_TYPE
 #include "fault_injection.h"
+#undef ENABLE_FAULT_TYPE
 
 int fault_injection_phase = 0;
 int fault_injection_period = 0;
@@ -1363,7 +1365,21 @@ void gpgpu_sim::cycle()
       }
       try_snap_shot(gpu_sim_cycle);
       spill_log_to_file (stdout, 0, gpu_sim_cycle);
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      if (fault_injection_list.size()>0) {
+    	  if (tot_clk_cycle == fault_injection_list[0]->faulty_clk ) {
+    		  printf("[Fault injection] Clock cycle finished. Remove the fault... (SM: %d | clk: %u | faulty-clk: %u)\n", fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk);
+    		  fault_injection_list.erase(fault_injection_list.begin());
+    	  }
+      }
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
    }
+
+
+
+
 }
 
 
@@ -1454,7 +1470,8 @@ void create_fault_list(unsigned long long base_clk) {
 		new_fault = new fault;
 
 		new_fault->faulty_clk = base_clk + offset_clk[i];
-		new_fault->nSM = rand()%sm_number;
+		//new_fault->nSM = rand()%sm_number;
+		new_fault->nSM = 1;
 		new_fault->nGlobalBlkId = -1;
 		new_fault->nGlobalThId = -1;
 		new_fault->nWarpId = -1;
