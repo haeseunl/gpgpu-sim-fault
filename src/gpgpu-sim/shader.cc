@@ -284,6 +284,9 @@ shader_core_ctx::shader_core_ctx( class gpgpu_sim *gpu,
     }
     
     m_ldst_unit = new ldst_unit( m_icnt, m_mem_fetch_allocator, this, &m_operand_collector, m_scoreboard, config, mem_config, stats, shader_id, tpc_id );
+    std::string tmp_name("LDSTR_UNIT");
+    m_ldst_unit->set_name(tmp_name);
+
     m_fu.push_back(m_ldst_unit);
     m_dispatch_port.push_back(ID_OC_MEM);
     m_issue_port.push_back(OC_EX_MEM);
@@ -1150,9 +1153,11 @@ void shader_core_ctx::execute()
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// First, check whether the clock cycle is met or not.
 	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
+	int check_flag = 0;
 	if (fault_injection_list.size()>0) {
 		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk && this->get_sid()==fault_injection_list[0]->nSM) {
 			printf("[Fault injection] (SM: %d) Clock & SM match!! (SmID: %d | clk: %u | faulty-clk: %u)\n", this->get_sid(), fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk);
+			check_flag = 1;
 			//fault_injection_list.erase(fault_injection_list.begin());
 		}
 	}
@@ -1160,10 +1165,24 @@ void shader_core_ctx::execute()
 	for(unsigned i=0; i<num_result_bus; i++){
 		*(m_result_bus[i]) >>=1;
 	}
+
+    if (check_flag) {
+		printf("--------------------------------------------------\n");
+    }
+
     for( unsigned n=0; n < m_num_function_units; n++ ) {
         unsigned multiplier = m_fu[n]->clock_multiplier();
-        for( unsigned c=0; c < multiplier; c++ ) 
-            m_fu[n]->cycle();
+        m_fu[n]->active_lanes_in_pipeline();
+
+        for( unsigned c=0; c < multiplier; c++ ) {
+        	if (check_flag) {
+        		int tmp = (int)m_fu[n]->get_active_lanes_in_pipeline();
+        		printf("[Fault injection] check pipeline of [%s] (active_lanes: %d)\n", m_fu[n]->get_name().c_str(), tmp);
+        		//m_fu[n]->check();
+        	}
+        	m_fu[n]->cycle();
+        }
+
         m_fu[n]->active_lanes_in_pipeline();
         enum pipeline_stage_name_t issue_port = m_issue_port[n];
         register_set& issue_inst = m_pipeline_reg[ issue_port ];
@@ -1181,6 +1200,11 @@ void shader_core_ctx::execute()
                 // stall issue (cannot reserve result bus)
             }
         }
+    }
+
+
+    if (check_flag) {
+		printf("--------------------------------------------------\n\n");
     }
 }
 
@@ -1531,6 +1555,7 @@ pipelined_simd_unit::pipelined_simd_unit( register_set* result_port, const shade
 
 void pipelined_simd_unit::cycle()
 {
+	//printf("pipelined_simd_unit::cycle()");
     if( !m_pipeline_reg[0]->empty() ){
         m_result_port->move_in(m_pipeline_reg[0]);
     }
@@ -1544,6 +1569,24 @@ void pipelined_simd_unit::cycle()
     }
     occupied >>=1;
 }
+
+void pipelined_simd_unit::check()
+{
+    if( !m_pipeline_reg[0]->empty() ){
+        printf("[Fault injection] move in..\n");
+    }
+    for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ) {
+    	if (!m_pipeline_reg[0]->empty()) {
+    		printf("[Fault injection] pipeline is not empty..\n");
+    	}
+    }
+    if( !m_dispatch_reg->empty() ) {
+    	printf("[Fault injection] dispatch is not empty..\n");
+    }
+
+}
+
+
 
 
 void pipelined_simd_unit::issue( register_set& source_reg )

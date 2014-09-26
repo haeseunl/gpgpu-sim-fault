@@ -964,7 +964,9 @@ public:
     // modifiers
     virtual void issue( register_set& source_reg ) { source_reg.move_out_to(m_dispatch_reg); occupied.set(m_dispatch_reg->latency);}
     virtual void cycle() = 0;
+    virtual void check() = 0;
     virtual void active_lanes_in_pipeline() = 0;
+    virtual unsigned get_active_lanes_in_pipeline() = 0;
 
     // accessors
     virtual unsigned clock_multiplier() const { return 1; }
@@ -975,6 +977,12 @@ public:
         fprintf(fp,"%s dispatch= ", m_name.c_str() );
         m_dispatch_reg->print(fp);
     }
+
+
+    // fault injection
+    void set_name(std::string name) { m_name = name; }
+    std::string get_name(void) { return m_name; }
+
 protected:
     std::string m_name;
     const shader_core_config *m_config;
@@ -989,6 +997,7 @@ public:
 
     //modifiers
     virtual void cycle();
+    virtual void check();
     virtual void issue( register_set& source_reg );
     virtual unsigned get_active_lanes_in_pipeline()
     {
