@@ -1181,14 +1181,15 @@ void gpgpu_sim::cycle()
 
 	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
 	unsigned long long period = (unsigned long long)fault_injection_period;
+	int clock_mask = next_clock_domain();
 
-	if (!(tot_clk_cycle%period) && fault_injection_phase == 0) {
+	if (!(tot_clk_cycle%period) && fault_injection_phase == 0 && (clock_mask & CORE)) {
 		printf("[Fault injection] Create fault injection list..\n");
 		create_fault_list(tot_clk_cycle);
 	}
 
 
-   int clock_mask = next_clock_domain();
+
 
    if (clock_mask & CORE ) {
        // shader core loading (pop from ICNT into core) follows CORE clock

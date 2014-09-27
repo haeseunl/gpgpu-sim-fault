@@ -55,6 +55,7 @@
 #include "traffic_breakdown.h"
 
 
+
 #define NO_OP_FLAG            0xFF
 
 /* READ_PACKET_SIZE:
@@ -963,7 +964,7 @@ public:
     // modifiers
     virtual void issue( register_set& source_reg ) { source_reg.move_out_to(m_dispatch_reg); occupied.set(m_dispatch_reg->latency);}
     virtual void cycle() = 0;
-    virtual void check(std::vector<warp_inst_t*>& candidate, int m_fu_n) = 0;
+    virtual void check(std::vector<warp_inst_t*>& candidate, int m_fu_n, int faulty_comp) = 0;
     virtual void active_lanes_in_pipeline() = 0;
     virtual unsigned get_active_lanes_in_pipeline() = 0;
 
@@ -996,7 +997,7 @@ public:
 
     //modifiers
     virtual void cycle();
-    virtual void check(std::vector<warp_inst_t*>& candidate, int m_fu_n);
+    virtual void check(std::vector<warp_inst_t*>& candidate, int m_fu_n, int faulty_comp);
     virtual void issue( register_set& source_reg );
     virtual unsigned get_active_lanes_in_pipeline()
     {

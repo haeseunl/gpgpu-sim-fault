@@ -1003,6 +1003,16 @@ public:
     void set_dim3_thd_id(dim3 thd_id_in) { thd_id = thd_id_in; }
     dim3 get_dim3_thd_id(void) { return thd_id; }
 
+    void print_detail_info(void) {
+		printf(" - print instruction detail...\n") ;
+		printf("  - pc             : 0x%x\n", this->pc);
+		printf("  - inst           : %s\n", this->get_asm_str().c_str());
+		printf("  - active cnt     : %d\n", this->active_count());
+		printf("  - inst oprnd_type: %d\n", this->oprnd_type);
+		printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", cta_id.x, cta_id.y, cta_id.z);
+		printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", thd_id.x, thd_id.y, thd_id.z);
+    }
+
 protected:
 
     unsigned m_uid;
@@ -1046,6 +1056,8 @@ protected:
     int nLocalThId;
     ptx_instruction *pInst;
     ptx_thread_info *pThdinfo;
+
+
 
 
 };

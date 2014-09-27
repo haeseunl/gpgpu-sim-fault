@@ -1154,11 +1154,13 @@ void shader_core_ctx::execute()
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// First, check whether the clock cycle is met or not.
 	std::vector<warp_inst_t*> candidate;
+	int fault_final = 0;
+	int active_lane_num = 0;
 	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
 	int check_flag = 0;
 	if (fault_injection_list.size()>0) {
 		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk) {
-			printf("[Fault injection] (SM: %d) Clock match!! (clk: %u | faulty-clk: %u)\n", this->get_sid(), tot_clk_cycle, fault_injection_list[0]->faulty_clk);
+			//printf("[Fault injection] (SM: %d) Clock match!! (clk: %u | faulty-clk: %u)\n", this->get_sid(), tot_clk_cycle, fault_injection_list[0]->faulty_clk);
 		//if (tot_clk_cycle == fault_injection_list[0]->faulty_clk && this->get_sid()==fault_injection_list[0]->nSM) {
 			if (this->get_sid()==fault_injection_list[0]->nSM && fault_injection_list[0]->faulty_comp != NONE) {
 				printf("[Fault injection] (SM: %d) Clock & SM match!! Inject the fault!! (SmID: %d | clk: %u | faulty-clk: %u | loc: %s)\n"
@@ -1174,6 +1176,7 @@ void shader_core_ctx::execute()
 
     if (check_flag) {
 		printf("--------------------------------------------------\n");
+		candidate.clear();
     }
 
     for( unsigned n=0; n < m_num_function_units; n++ ) {
@@ -1181,9 +1184,9 @@ void shader_core_ctx::execute()
 
         for( unsigned c=0; c < multiplier; c++ ) {
         	if (check_flag) {
-        		int tmp = (int)m_fu[n]->get_active_lanes_in_pipeline();
-        		printf("[Fault injection] check pipeline of [%s] (active_lanes: %d)\n", m_fu[n]->get_name().c_str(), tmp);
-        		m_fu[n]->check(candidate, n);
+        		active_lane_num = (int)m_fu[n]->get_active_lanes_in_pipeline();
+        		printf("[Fault injection] check pipeline of [%s] (active_lanes: %d)\n", m_fu[n]->get_name().c_str(), active_lane_num);
+        		m_fu[n]->check(candidate, n, fault_injection_list[0]->faulty_comp);
         	}
         	m_fu[n]->cycle();
         }
@@ -1209,6 +1212,27 @@ void shader_core_ctx::execute()
 
 
     if (check_flag) {
+
+    	if (candidate.size()>0) {
+        	printf(" Number of candidate: (%d) print instruction detail..\n", candidate.size());
+        	printf(" Faulty component: %s\n", gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
+//    		for (int i=0; i<candidate.size(); i++) {
+//    			candidate[i]->print_detail_info();
+//    		}
+
+        	fault_final = rand()%candidate.size();
+        	printf(" Final call.. Fault is injected (%d)th candidate. Detail information is following..\n", fault_final);
+        	assert(fault_final<candidate.size());
+        	candidate[fault_final]->print_detail_info();
+    	}
+    	else {
+    		printf(" NO MATCHING for component: %s \n", gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
+    	}
+
+
+
+
+
 		printf("--------------------------------------------------\n\n");
     }
 }
@@ -1578,43 +1602,80 @@ void pipelined_simd_unit::cycle()
 
 ///////////////////////////////////////////////////////////////////////////
 // TODO:
-void print_inst_detail(warp_inst_t* m_pipeline_reg)
+int check_inst_detail(warp_inst_t* m_pipeline_reg, int m_fu_n, int faulty_comp)
 {
+	int ret = 0;
 	std::string asm_str;
 	dim3 cta_id;
 	dim3 thd_id;
 	cta_id = m_pipeline_reg->get_dim3_cta_id();
 	thd_id = m_pipeline_reg->get_dim3_thd_id();
+	if (0<=m_fu_n && m_fu_n<2) {
+		if (faulty_comp == FLOAT_ALU && m_pipeline_reg->oprnd_type == FP_OP) {
+			ret = 1;
+			//printf("[Fault Injection] FLOAT_ALU match!!\n");
+		}
+		if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP)) {
+			ret = 1;
+			//printf("[Fault Injection] INT_ALU match!!\n");
+		}
+	}
+	else if (m_fu_n==2) {
+		if (faulty_comp == SFU_ALU && m_pipeline_reg->op_pipe == SFU__OP) {
+			ret = 1;
+			//printf("[Fault Injection] SFU_ALU match!!\n");
+		}
+	}
+	else if (m_fu_n==3) {
+		if (faulty_comp == LDSTR_UNIT && (m_pipeline_reg->op==LOAD_OP || m_pipeline_reg->op==STORE_OP)) {
+			ret = 1;
+			//printf("[Fault Injection] LDSTR_UNIT match!!\n");
+		}
+	}
 
-	printf(" - print instruction detail...\n") ;
-	printf("  - pc: 0x%x\n", m_pipeline_reg->pc);
-	asm_str = m_pipeline_reg->get_asm_str();
-	printf("  - inst: %s\n", asm_str.c_str());
-	printf("  - inst oprnd_type: %d\n", m_pipeline_reg->oprnd_type);
-	printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", cta_id.x, cta_id.y, cta_id.z);
-	printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", thd_id.x, thd_id.y, thd_id.z);
+//	if (ret) {
+//		m_pipeline_reg->print_detail_info();
+//	}
+//	else {
+//		printf("[Fault Injection] NO match!!\n");
+//	}
+
+	return ret;
 
 }
 
 
-void pipelined_simd_unit::check(std::vector<warp_inst_t*>& candidate, int m_fu_n )
+void pipelined_simd_unit::check(std::vector<warp_inst_t*>& candidate, int m_fu_n, int faulty_comp)
 {
 
+	int status = 0;
 	// Check and collect candidate for fault injection
     if( !m_pipeline_reg[0]->empty() ){
-    	printf("[Fault injection] last stage is not empty..\n");
-    	print_inst_detail(m_pipeline_reg[0]);
+    	//printf("[Fault injection] last stage is not empty..\n");
+    	status = check_inst_detail(m_pipeline_reg[0], m_fu_n, faulty_comp);
+    	if (status) {
+    		candidate.push_back(m_pipeline_reg[0]);
+    	}
     }
 
     for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ){
+    	status = 0;
     	if( !m_pipeline_reg[stage]->empty() ) {
-    		printf("[Fault injection] (%d)th stage is not empty!!\n", stage);
-    		print_inst_detail(m_pipeline_reg[stage]);
+    		//printf("[Fault injection] (%d)th stage is not empty!!\n", stage);
+    		status = check_inst_detail(m_pipeline_reg[stage], m_fu_n, faulty_comp);
+        	if (status) {
+        		candidate.push_back(m_pipeline_reg[stage]);
+        	}
     	}
     }
+
+    status = 0;
     if( !m_dispatch_reg->empty() ) {
-    	printf("[Fault injection] dispatch is not empty..\n");
-    	print_inst_detail(m_dispatch_reg);
+    	//printf("[Fault injection] dispatch is not empty..\n");
+    	status = check_inst_detail(m_dispatch_reg, m_fu_n, faulty_comp);
+    	if (status) {
+    		candidate.push_back(m_dispatch_reg);
+    	}
     }
 
 
