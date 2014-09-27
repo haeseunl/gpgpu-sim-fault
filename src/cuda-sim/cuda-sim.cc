@@ -451,6 +451,21 @@ void ptx_print_insn( address_type pc, FILE *fp )
    finfo->print_insn(pc,fp);
 }
 
+std::string ptx_print_asm( address_type pc )
+{
+   std::map<unsigned,function_info*>::iterator f = g_pc_to_finfo.find(pc);
+   std::string ptx_asm("NONE");
+   if( f == g_pc_to_finfo.end() ) {
+       printf("[FATAL] <no instruction at address 0x%x>", pc );
+       assert(0);
+   }
+   function_info *finfo = f->second;
+   assert( finfo );
+   ptx_asm = finfo->get_insn_asm_str(pc);
+   //printf("%s\n", ptx_asm.c_str());
+   return ptx_asm;
+}
+
 std::string ptx_get_insn_str( address_type pc )
 {
    std::map<unsigned,function_info*>::iterator f = g_pc_to_finfo.find(pc);
@@ -1195,6 +1210,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    addr_t pc = next_instr();
    assert( pc == inst.pc ); // make sure timing model and functional model are in sync
    const ptx_instruction *pI = m_func_info->get_instruction(pc);
+   ptx_instruction *pI_for_warp = m_func_info->get_instruction_ptr(pc);
    set_npc( pc + pI->inst_size() );
    
 
@@ -1246,6 +1262,22 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       }
       delete pJ;
       pI = pI_saved;
+
+
+      ////////////////////////////////////////////////////////
+      // store info
+      inst.set_inst_ptr(pI_for_warp);
+      inst.set_thd_info(this);
+      inst.set_m_hw_cta_id(this->get_hw_ctaid());
+      inst.set_m_hw_sm_id(this->get_hw_sid());
+      inst.set_m_hw_thd_id(this->get_hw_tid());
+      inst.set_m_hw_warp_id(this->get_hw_wid());
+
+      inst.set_dim3_cta_id(this->get_ctaid());
+      inst.set_dim3_thd_id(this->get_tid());
+      ////////////////////////////////////////////////////////
+
+
       
       // Run exit instruction if exit option included
       if(pI->is_exit())

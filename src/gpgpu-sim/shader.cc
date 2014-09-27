@@ -52,9 +52,7 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
     
 
-/////////////////////////////////////////////////////////////////////////////
-#include "fault_injection.h"
-/////////////////////////////////////////////////////////////////////////////
+
 
 std::list<unsigned> shader_core_ctx::get_regs_written( const inst_t &fvt ) const
 {
@@ -1152,13 +1150,18 @@ void shader_core_ctx::execute()
 {
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// First, check whether the clock cycle is met or not.
+	std::vector<warp_inst_t*> candidate;
 	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
 	int check_flag = 0;
 	if (fault_injection_list.size()>0) {
-		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk && this->get_sid()==fault_injection_list[0]->nSM) {
-			printf("[Fault injection] (SM: %d) Clock & SM match!! (SmID: %d | clk: %u | faulty-clk: %u)\n", this->get_sid(), fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk);
-			check_flag = 1;
-			//fault_injection_list.erase(fault_injection_list.begin());
+		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk) {
+			printf("[Fault injection] (SM: %d) Clock match!! (clk: %u | faulty-clk: %u)\n", this->get_sid(), tot_clk_cycle, fault_injection_list[0]->faulty_clk);
+		//if (tot_clk_cycle == fault_injection_list[0]->faulty_clk && this->get_sid()==fault_injection_list[0]->nSM) {
+			if (this->get_sid()==fault_injection_list[0]->nSM && fault_injection_list[0]->faulty_comp != NONE) {
+				printf("[Fault injection] (SM: %d) Clock & SM match!! Inject the fault!! (SmID: %d | clk: %u | faulty-clk: %u | loc: %s)\n"
+						, this->get_sid(), fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk, gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
+				check_flag = 1;
+			}
 		}
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -1172,13 +1175,12 @@ void shader_core_ctx::execute()
 
     for( unsigned n=0; n < m_num_function_units; n++ ) {
         unsigned multiplier = m_fu[n]->clock_multiplier();
-        m_fu[n]->active_lanes_in_pipeline();
 
         for( unsigned c=0; c < multiplier; c++ ) {
         	if (check_flag) {
         		int tmp = (int)m_fu[n]->get_active_lanes_in_pipeline();
         		printf("[Fault injection] check pipeline of [%s] (active_lanes: %d)\n", m_fu[n]->get_name().c_str(), tmp);
-        		//m_fu[n]->check();
+        		m_fu[n]->check(candidate, n);
         	}
         	m_fu[n]->cycle();
         }
@@ -1570,22 +1572,52 @@ void pipelined_simd_unit::cycle()
     occupied >>=1;
 }
 
-void pipelined_simd_unit::check()
+
+///////////////////////////////////////////////////////////////////////////
+// TODO:
+void print_inst_detail(warp_inst_t* m_pipeline_reg)
 {
+	std::string asm_str;
+	dim3 cta_id;
+	dim3 thd_id;
+	cta_id = m_pipeline_reg->get_dim3_cta_id();
+	thd_id = m_pipeline_reg->get_dim3_thd_id();
+
+	printf(" - print instruction detail...\n") ;
+	printf("  - pc: 0x%x\n", m_pipeline_reg->pc);
+	asm_str = m_pipeline_reg->get_asm_str();
+	printf("  - inst: %s\n", asm_str.c_str());
+	printf("  - inst oprnd_type: %d\n", m_pipeline_reg->oprnd_type);
+	printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", cta_id.x, cta_id.y, cta_id.z);
+	printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", thd_id.x, thd_id.y, thd_id.z);
+
+}
+
+
+void pipelined_simd_unit::check(std::vector<warp_inst_t*>& candidate, int m_fu_n )
+{
+
+	// Check and collect candidate for fault injection
     if( !m_pipeline_reg[0]->empty() ){
-        printf("[Fault injection] move in..\n");
+    	printf("[Fault injection] last stage is not empty..\n");
+    	print_inst_detail(m_pipeline_reg[0]);
     }
-    for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ) {
-    	if (!m_pipeline_reg[0]->empty()) {
-    		printf("[Fault injection] pipeline is not empty..\n");
+
+    for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ){
+    	if( !m_pipeline_reg[stage]->empty() ) {
+    		printf("[Fault injection] (%d)th stage is not empty!!\n", stage);
+    		print_inst_detail(m_pipeline_reg[stage]);
     	}
     }
     if( !m_dispatch_reg->empty() ) {
     	printf("[Fault injection] dispatch is not empty..\n");
+    	print_inst_detail(m_dispatch_reg);
     }
 
-}
 
+
+}
+///////////////////////////////////////////////////////////////////////////
 
 
 
@@ -2218,6 +2250,21 @@ void warp_inst_t::print( FILE *fout ) const
     ptx_print_insn( pc, fout );
     fprintf(fout, "\n");
 }
+
+std::string warp_inst_t::get_asm_str() const
+{
+	return ptx_print_asm( pc );
+}
+
+void warp_inst_t::get_callback_status(void) {
+	for (int i=0; i<m_per_scalar_thread.size(); i++) {
+		if (has_callback(i)) {
+			printf("   - (%d)th thread has callback\n", i);
+		}
+	}
+}
+
+
 void shader_core_ctx::incexecstat(warp_inst_t *&inst)
 {
 	if(inst->mem_op==TEX)

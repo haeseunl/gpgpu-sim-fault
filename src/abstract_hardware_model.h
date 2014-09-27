@@ -155,6 +155,8 @@ enum _memory_op_t {
 #include <map>
 #include <deque>
 
+
+
 #if !defined(__VECTOR_TYPES_H__)
 struct dim3 {
    unsigned int x, y, z;
@@ -162,6 +164,9 @@ struct dim3 {
 #endif
 
 void increment_x_then_y_then_z( dim3 &i, const dim3 &bound);
+
+class ptx_instruction;
+class ptx_thread_info;
 
 class kernel_info_t {
 public:
@@ -809,7 +814,10 @@ public:
     {
         m_uid=0;
         m_empty=true; 
-        m_config=NULL; 
+        m_config=NULL;
+        nGlobalBlkId=-1;
+        nGlobalThId=-1;
+        nLocalThId=-1;
     }
     warp_inst_t( const core_config *config ) 
     { 
@@ -822,6 +830,9 @@ public:
         m_mem_accesses_created=false;
         m_cache_hit=false;
         m_is_printf=false;
+        nGlobalBlkId=-1;
+        nGlobalThId=-1;
+        nLocalThId=-1;
     }
     virtual ~warp_inst_t(){
     }
@@ -962,8 +973,35 @@ public:
     }
 
     void print( FILE *fout ) const;
+    std::string get_asm_str(void) const;
     unsigned get_uid() const { return m_uid; }
 
+    void get_callback_status(void);
+    void set_global_blk_id(int id) { nGlobalBlkId = id; }
+    int get_global_blk_id(void) { return nGlobalBlkId; }
+    void set_global_thead_id(int id) { nGlobalThId = id; }
+    int get_global_thead_id(void) { return nGlobalThId; }
+    void set_local_blk_id(int id) { nLocalThId = id; }
+    int get_local_blk_id(void) { return nLocalThId; }
+
+    void set_inst_ptr(ptx_instruction *pInst_in) { pInst = pInst_in; }
+    ptx_instruction* get_inst_ptr(void) { return pInst; }
+    void set_thd_info(ptx_thread_info *pThdinfo_in) { pThdinfo = pThdinfo_in; }
+    ptx_thread_info* get_thd_info(void) { return pThdinfo; }
+
+    void set_m_hw_sm_id(int id) { m_hw_sm_id = id; }
+    int get_m_hw_sm_id(void) { return m_hw_sm_id; }
+    void set_m_hw_cta_id(int id) { m_hw_cta_id = id; }
+    int get_m_hw_cta_id(void) { return m_hw_cta_id; }
+    void set_m_hw_warp_id(int id) { m_hw_warp_id = id; }
+    int get_m_hw_warp_id(void) { return m_hw_warp_id; }
+    void set_m_hw_thd_id(int id) { m_hw_thd_id = id; }
+    int get_m_hw_thd_id(void) { return m_hw_thd_id; }
+
+    void set_dim3_cta_id(dim3 cta_id_in) { cta_id = cta_id_in; }
+    dim3 get_dim3_cta_id(void) { return cta_id; }
+    void set_dim3_thd_id(dim3 thd_id_in) { thd_id = thd_id_in; }
+    dim3 get_dim3_thd_id(void) { return thd_id; }
 
 protected:
 
@@ -994,6 +1032,22 @@ protected:
     std::list<mem_access_t> m_accessq;
 
     static unsigned sm_next_uid;
+
+    dim3 cta_id;
+    dim3 thd_id;
+
+    int m_hw_sm_id;
+    int m_hw_cta_id;
+    int m_hw_warp_id;
+    int m_hw_thd_id;
+
+    int nGlobalBlkId;
+    int nGlobalThId;
+    int nLocalThId;
+    ptx_instruction *pInst;
+    ptx_thread_info *pThdinfo;
+
+
 };
 
 void move_warp( warp_inst_t *&dst, warp_inst_t *&src );

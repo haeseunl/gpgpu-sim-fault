@@ -1470,8 +1470,8 @@ void create_fault_list(unsigned long long base_clk) {
 		new_fault = new fault;
 
 		new_fault->faulty_clk = base_clk + offset_clk[i];
-		//new_fault->nSM = rand()%sm_number;
-		new_fault->nSM = 1;
+		new_fault->nSM = rand()%sm_number;
+		//new_fault->nSM = 1;
 		new_fault->nGlobalBlkId = -1;
 		new_fault->nGlobalThId = -1;
 		new_fault->nWarpId = -1;

@@ -860,6 +860,7 @@ public:
    void print_insn() const;
    virtual void print_insn( FILE *fp ) const;
    std::string to_string() const;
+   std::string to_asm_string() const;
    unsigned inst_size() const { return m_inst_size; }
    unsigned uid() const { return m_uid;}
    int get_opcode() const { return m_opcode;}
@@ -1131,6 +1132,7 @@ public:
    }
    unsigned print_insn( unsigned pc, FILE * fp ) const;
     std::string get_insn_str( unsigned pc ) const;
+    std::string get_insn_asm_str( unsigned pc ) const;
    void add_inst( const std::list<ptx_instruction*> &instructions )
    {
       m_instructions = instructions;
@@ -1220,6 +1222,16 @@ public:
          return m_instr_mem[index];
       return NULL;
    }
+
+   ptx_instruction *get_instruction_ptr( unsigned PC )
+   {
+      unsigned index = PC - m_start_PC;
+      if( index < m_instr_mem_size )
+         return m_instr_mem[index];
+      return NULL;
+   }
+
+
    addr_t get_start_PC() const
    {
        return m_start_PC;

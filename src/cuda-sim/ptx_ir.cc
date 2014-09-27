@@ -1232,6 +1232,28 @@ std::string ptx_instruction::to_string() const
    return std::string( buf );
 }
 
+///////////////////////////////////////////////////////////////////
+std::string ptx_instruction::to_asm_string() const
+{
+   char buf[ STR_SIZE ];
+   unsigned used_bytes = 0;
+   if( !is_label() ) {
+
+   } else {
+
+   }
+   used_bytes += snprintf( buf + used_bytes, STR_SIZE - used_bytes,
+                           "(%s:%d) %s",
+                           m_source_file.c_str(), m_source_line,
+                           m_source.c_str() );
+   return std::string( buf );
+}
+
+///////////////////////////////////////////////////////////////////
+
+
+
+
 unsigned function_info::sm_next_uid = 1;
 
 function_info::function_info(int entry_point ) 
@@ -1293,6 +1315,30 @@ std::string function_info::get_insn_str( unsigned pc ) const
       }
    }
 }
+
+
+/////////////////////////////////////////////////////////////////////////// to_asm_string
+std::string function_info::get_insn_asm_str( unsigned pc ) const
+{
+   unsigned index = pc - m_start_PC;
+   if ( index >= m_instr_mem_size ) {
+      char buff[STR_SIZE];
+      buff[STR_SIZE-1] = '\0';
+      snprintf(buff, STR_SIZE, "<past last instruction (max pc=%u)>", m_start_PC + m_instr_mem_size - 1 );
+      return std::string(buff);
+   } else {
+      if ( m_instr_mem[index] != NULL ) {
+         return m_instr_mem[index]->to_asm_string();
+      } else {
+         char buff[STR_SIZE];
+         buff[STR_SIZE-1] = '\0';
+         snprintf(buff, STR_SIZE, "<no instruction at pc = %u>", pc );
+         return std::string(buff);
+      }
+   }
+}
+///////////////////////////////////////////////////////////////////////////
+
 
 void gpgpu_ptx_assemble( std::string kname, void *kinfo )
 {
