@@ -1202,6 +1202,7 @@ static unsigned get_tex_datasize( const ptx_instruction *pI, ptx_thread_info *th
    return data_size; 
 }
 
+// TODO:
 void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
 {
     
@@ -1233,6 +1234,12 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       }
    }
    
+   if (fault_injection_phase==2 && effective_fault_list.size()>0) {
+	   //printf("[Fault apply] It's time to apply fault!! \n");
+
+   }
+
+
    
    if( pI->has_pred() ) {
       const operand_info &pred = pI->get_pred();

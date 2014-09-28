@@ -69,9 +69,12 @@ class fault;
 extern int fault_injection_phase;
 extern int fault_injection_period;
 extern int fault_injection_number;
+extern const char *fault_list;
 extern std::ifstream fault_injection_read;
-extern std::ofstream fault_injection_write;
+extern FILE* fault_injection_write;
 extern std::vector<fault*> fault_injection_list;
+extern std::vector<fault*> effective_fault_list;
+extern void read_effective_fault_list(void);
 ///////////////////////////////////////////////////////////
 
 

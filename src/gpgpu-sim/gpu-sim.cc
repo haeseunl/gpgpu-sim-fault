@@ -105,11 +105,12 @@ unsigned int gpu_stall_icnt2sh = 0;
 int fault_injection_phase = 0;
 int fault_injection_period = 0;
 int fault_injection_number = 0;
+const char *fault_list = "FaultList.log";
 std::ifstream fault_injection_read;
-std::ofstream fault_injection_write;
+FILE* fault_injection_write=NULL;
 std::vector<fault*> fault_injection_list;
+std::vector<fault*> effective_fault_list;
 ///////////////////////////////////////////////////////////
-
 
 #include "mem_latency_stat.h"
 
@@ -454,7 +455,7 @@ void gpgpu_sim_config::reg_options(option_parser_t opp)
                           "-1");
     option_parser_register(opp, "-fault_injection_number", OPT_INT32,
                           &fault_injection_number, "Number of fault per period. Default -1 (i.e. all)",
-                          "-1");
+                          "0");
     option_parser_register(opp, "-fault_injection_phase", OPT_INT32,
                           &fault_injection_phase, "Fault injection phase. Default 0 (i.e. all)",
                           "0");
@@ -1183,7 +1184,7 @@ void gpgpu_sim::cycle()
 	unsigned long long period = (unsigned long long)fault_injection_period;
 	int clock_mask = next_clock_domain();
 
-	if (!(tot_clk_cycle%period) && fault_injection_phase == 0 && (clock_mask & CORE)) {
+	if (!(tot_clk_cycle%period) && (clock_mask & CORE) && fault_injection_phase==INJECT_FAULT) {
 		printf("[Fault injection] Create fault injection list..\n");
 		create_fault_list(tot_clk_cycle);
 	}
@@ -1473,10 +1474,6 @@ void create_fault_list(unsigned long long base_clk) {
 		new_fault->faulty_clk = base_clk + offset_clk[i];
 		new_fault->nSM = rand()%sm_number;
 		//new_fault->nSM = 1;
-		new_fault->nGlobalBlkId = -1;
-		new_fault->nGlobalThId = -1;
-		new_fault->nWarpId = -1;
-
 		new_fault->faulty_comp = get_faulty_comp();
 		//faulty_comp_id = get_faulty_comp();
 
@@ -1540,11 +1537,138 @@ gpu_comp_list get_faulty_comp(void)
 	if (ret==NONE) {
 		//printf("No Faulty component: [prob: %f]\n", prob);
 	}
+	return ret;
+}
 
-
-
-
-
+///////////////////////////////////////////////////////////////////////
+std::string extract_string(std::string& source, std::string& base)
+{
+	std::string ret;
+	std::size_t found;
+	// get clk info
+	found = source.find(": ");
+	if (found!=std::string::npos) {
+		ret = source.substr(found+base.size(), source.size()-found-base.size());
+		//printf("%s\n", ret.c_str());
+	}
 
 	return ret;
 }
+
+int extract_number(std::string& source, std::string& base)
+{
+	int ret;
+	std::string substr;
+	std::size_t found;
+	// get clk info
+	found = source.find(": ");
+	if (found!=std::string::npos) {
+		substr = source.substr(found+base.size(), source.size()-found-base.size());
+		//printf("%s\n", substr.c_str());
+		ret = atoi(substr.c_str());
+	}
+
+	return ret;
+}
+
+unsigned long long extract_ull(std::string& source, std::string& base)
+{
+	unsigned long long ret;
+	std::string substr;
+	std::size_t found;
+	std::string::size_type sz = 0;   // alias of size_t
+	// get clk info
+	found = source.find(": ");
+	if (found!=std::string::npos) {
+		substr = source.substr(found+base.size(), source.size()-found-base.size());
+		//printf("%s\n", substr.c_str());
+		ret = std::stoull(substr,&sz,0);
+	}
+
+	return ret;
+}
+
+
+
+
+void ReadFault(std::vector<std::string>& linedata, int fault_num) {
+	int line_idx = 0;
+	fault* new_fault;
+	std::size_t found;
+	std::string sub_string;
+	std::string base(": ");
+	printf("Start read fault.. (# of fault: %d)\n", fault_num);
+//	for (int i=0; i<linedata.size(); i++) {
+//		printf("%s\n", linedata[i].c_str());
+//	}
+
+	for (int i=0; i<fault_num; i++) {
+		new_fault = new fault;
+		//printf("%s\n", linedata[i].c_str());
+		// Skip first 2 lines
+		line_idx = line_idx+2;
+		new_fault->faulty_clk = extract_ull(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->pc = (unsigned)extract_ull(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->inst_string = extract_string(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->nActiveCnt = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->nOprnd_type = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->cta_id.x = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->cta_id.y = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->cta_id.z = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->thd_id.x = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->thd_id.y = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->thd_id.z = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		// skip last line;
+		line_idx++;
+		effective_fault_list.push_back(new_fault);
+	}
+
+	for (int i=0; i<effective_fault_list.size(); i++) {
+		effective_fault_list[i]->print_fault_detail();
+	}
+
+}
+
+
+void read_effective_fault_list(void)
+{
+	int fault_num = 0;
+
+	std::string line;
+	std::size_t found;
+	std::vector<std::string> linedata;
+
+	while (getline(fault_injection_read, line)) {
+		linedata.push_back(line);
+		found = line.find("Fault detail");
+		if (found!=std::string::npos) {
+			fault_num++;
+		}
+	}
+	ReadFault(linedata, fault_num);
+	//effective_fault_list
+
+}
+///////////////////////////////////////////////////////////////////////

@@ -1153,6 +1153,8 @@ void shader_core_ctx::execute()
 {
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// First, check whether the clock cycle is met or not.
+	// If the 'fault_injection_phase' is not INJECT_FAULT,
+	// then there is no value in vector<fault*>fault_injection_list.
 	std::vector<warp_inst_t*> candidate;
 	int fault_final = 0;
 	int active_lane_num = 0;
@@ -1183,6 +1185,8 @@ void shader_core_ctx::execute()
         unsigned multiplier = m_fu[n]->clock_multiplier();
 
         for( unsigned c=0; c < multiplier; c++ ) {
+        	// Examine the pipeline of the execution part and create the candidate list.
+        	// If phase is not 1, then check flag is net set.
         	if (check_flag) {
         		active_lane_num = (int)m_fu[n]->get_active_lanes_in_pipeline();
         		printf("[Fault injection] check pipeline of [%s] (active_lanes: %d)\n", m_fu[n]->get_name().c_str(), active_lane_num);
@@ -1210,31 +1214,30 @@ void shader_core_ctx::execute()
         }
     }
 
-
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Make a final decision for the instruction to inject a fault
+    // Here, store the information about the fault for next phase.
     if (check_flag) {
-
     	if (candidate.size()>0) {
         	printf(" Number of candidate: (%d) print instruction detail..\n", candidate.size());
         	printf(" Faulty component: %s\n", gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
 //    		for (int i=0; i<candidate.size(); i++) {
 //    			candidate[i]->print_detail_info();
 //    		}
-
         	fault_final = rand()%candidate.size();
         	printf(" Final call.. Fault is injected (%d)th candidate. Detail information is following..\n", fault_final);
         	assert(fault_final<candidate.size());
-        	candidate[fault_final]->print_detail_info();
+        	candidate[fault_final]->print_detail_info(tot_clk_cycle);
+        	assert(fault_injection_write!=NULL);
+        	candidate[fault_final]->store_applied_fault_info(fault_injection_write, tot_clk_cycle);
+
     	}
     	else {
     		printf(" NO MATCHING for component: %s \n", gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
     	}
-
-
-
-
-
 		printf("--------------------------------------------------\n\n");
     }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
 }
 
 void ldst_unit::print_cache_stats( FILE *fp, unsigned& dl1_accesses, unsigned& dl1_misses ) {
