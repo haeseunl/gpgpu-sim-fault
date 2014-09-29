@@ -1458,6 +1458,8 @@ void create_fault_list(unsigned long long base_clk) {
 	int sm_number = g_the_gpu->getShaderCoreConfig()->n_simt_clusters;
 
 	fault_injection_list.clear();
+	srand((unsigned) time(NULL));
+
 	for (int i=0; i<fault_injection_number; i++) {
 		offset_clk.push_back(rand()%fault_injection_period);
 	}
@@ -1651,9 +1653,13 @@ void ReadFault(std::vector<std::string>& linedata, int fault_num) {
 		effective_fault_list.push_back(new_fault);
 	}
 
+	printf("*********************************************************\n");
+	printf("[Fault injection] Total number of effective fault: %d\n", (int)effective_fault_list.size());
 	for (int i=0; i<effective_fault_list.size(); i++) {
 		effective_fault_list[i]->print_fault_detail();
 	}
+
+	printf("*********************************************************\n");
 
 }
 

@@ -1162,13 +1162,16 @@ void shader_core_ctx::execute()
 	int check_flag = 0;
 	if (fault_injection_list.size()>0) {
 		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk) {
-			//printf("[Fault injection] (SM: %d) Clock match!! (clk: %u | faulty-clk: %u)\n", this->get_sid(), tot_clk_cycle, fault_injection_list[0]->faulty_clk);
 		//if (tot_clk_cycle == fault_injection_list[0]->faulty_clk && this->get_sid()==fault_injection_list[0]->nSM) {
 			if (this->get_sid()==fault_injection_list[0]->nSM && fault_injection_list[0]->faulty_comp != NONE) {
 				printf("[Fault injection] (SM: %d) Clock & SM match!! Inject the fault!! (SmID: %d | clk: %u | faulty-clk: %u | loc: %s)\n"
 						, this->get_sid(), fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk, gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
 				check_flag = 1;
 			}
+//			else {
+//				printf("[Fault injection] (SM: %d) Clock match!! But no Component (clk: %u | faulty-clk: %u | loc: %s)\n"
+//						, this->get_sid(), tot_clk_cycle, fault_injection_list[0]->faulty_clk, gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
+//			}
 		}
 	}
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -1613,12 +1616,16 @@ int check_inst_detail(warp_inst_t* m_pipeline_reg, int m_fu_n, int faulty_comp)
 	dim3 thd_id;
 	cta_id = m_pipeline_reg->get_dim3_cta_id();
 	thd_id = m_pipeline_reg->get_dim3_thd_id();
+
+	//m_pipeline_reg->print_detail_info();
+
+
 	if (0<=m_fu_n && m_fu_n<2) {
 		if (faulty_comp == FLOAT_ALU && m_pipeline_reg->oprnd_type == FP_OP) {
 			ret = 1;
 			//printf("[Fault Injection] FLOAT_ALU match!!\n");
 		}
-		if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP)) {
+		if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP || m_pipeline_reg->oprnd_type==UN_OP)) {
 			ret = 1;
 			//printf("[Fault Injection] INT_ALU match!!\n");
 		}
