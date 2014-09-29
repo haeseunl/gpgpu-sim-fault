@@ -49,6 +49,10 @@
 #include "decuda_pred_table/decuda_pred_table.h"
 #include "../stream_manager.h"
 
+/////////////////////////////////////////////////////
+#include "../gpgpu-sim/fault_injection.h"
+
+
 int gpgpu_ptx_instruction_classification;
 void ** g_inst_classification_stat = NULL;
 void ** g_inst_op_classification_stat= NULL;
@@ -1214,6 +1218,14 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    ptx_instruction *pI_for_warp = m_func_info->get_instruction_ptr(pc);
    set_npc( pc + pI->inst_size() );
    
+   ////////////////////////////////////////////////////
+   // Fault aplpy
+   unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
+   gpu_comp_list faulty_comp;
+   std::string inst_asm_string = inst.get_asm_str();
+   int apply_fault = 0;
+   ////////////////////////////////////////////////////
+
 
    try {
 
@@ -1236,7 +1248,19 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    
    if (fault_injection_phase==2 && effective_fault_list.size()>0) {
 	   //printf("[Fault apply] It's time to apply fault!! \n");
+	   apply_fault = effective_fault_list[0]->find_match(this->get_hw_sid(), inst.pc, inst_asm_string, this->get_ctaid(), this->get_tid());
 
+	   if (apply_fault) {
+		   printf("====================================================\n");
+		   printf("[Fault apply] MATCH!! It's time to apply fault!! \n");
+		   inst.print_faulty_inst_info(tot_clk_cycle, this->get_hw_sid(), (int)effective_fault_list[0]->faulty_comp);
+		   printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", this->get_ctaid().x, this->get_ctaid().y, this->get_ctaid().z);
+		   printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", this->get_tid().x, this->get_tid().y, this->get_tid().z);
+		   printf("--------------------------------------------------\n");
+		   effective_fault_list[0]->print_fault_detail();
+		   this->set_fault_flag(1);
+		   printf("====================================================\n");
+	   }
    }
 
 
@@ -1270,19 +1294,28 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       delete pJ;
       pI = pI_saved;
 
+      if (fault_injection_phase==1) {
+          ////////////////////////////////////////////////////////
+          // store info
+          inst.set_inst_ptr(pI_for_warp);
+          inst.set_thd_info(this);
+          inst.set_m_hw_cta_id(this->get_hw_ctaid());
+          inst.set_m_hw_sm_id(this->get_hw_sid());
+          inst.set_m_hw_thd_id(this->get_hw_tid());
+          inst.set_m_hw_warp_id(this->get_hw_wid());
 
-      ////////////////////////////////////////////////////////
-      // store info
-      inst.set_inst_ptr(pI_for_warp);
-      inst.set_thd_info(this);
-      inst.set_m_hw_cta_id(this->get_hw_ctaid());
-      inst.set_m_hw_sm_id(this->get_hw_sid());
-      inst.set_m_hw_thd_id(this->get_hw_tid());
-      inst.set_m_hw_warp_id(this->get_hw_wid());
+          inst.set_dim3_cta_id(this->get_ctaid());
+          inst.set_dim3_thd_id(this->get_tid());
+          ////////////////////////////////////////////////////////
+      }
 
-      inst.set_dim3_cta_id(this->get_ctaid());
-      inst.set_dim3_thd_id(this->get_tid());
-      ////////////////////////////////////////////////////////
+      if (fault_injection_phase==2 && effective_fault_list.size()>0) {
+    	  if (apply_fault) {
+    		  effective_fault_list.erase(effective_fault_list.begin());
+    		  this->set_fault_flag(0);
+    		  printf("[Fault injection] Erase applied fault...\n\n");
+    	  }
+      }
 
 
       

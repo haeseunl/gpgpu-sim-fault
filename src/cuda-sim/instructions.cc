@@ -51,6 +51,8 @@ const char *g_opcode_string[NUM_OPCODES] = {
 #undef OP_DEF
 };
 
+void insert_bit_flip(ptx_reg_t& dest);
+
 void inst_not_implemented( const ptx_instruction * pI ) ;
 ptx_reg_t srcOperandModifiers(ptx_reg_t opData, operand_info opInfo, operand_info dstInfo, unsigned type, ptx_thread_info *thread);
 
@@ -673,6 +675,10 @@ void abs_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -744,6 +750,10 @@ void addp_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    }
    fesetround( orig_rm );
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst, data, i_type, thread, pI, overflow, carry  );
 }
 
@@ -811,6 +821,10 @@ void add_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    }
    fesetround( orig_rm );
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst, data, i_type, thread, pI, overflow, carry  );
 }
 
@@ -862,6 +876,10 @@ void andn_impl( const ptx_instruction *pI, ptx_thread_info *thread )
 
    data.u64 = src1_data.u64 & src2_data.u64;
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
 
@@ -874,6 +892,12 @@ void bar_callback( const inst_t* inst, ptx_thread_info* thread)
 	const operand_info &dst  = pI->dst();
 	ptx_reg_t data;
 	data.u32 = value;
+
+	// TODO:
+	////////////////////////////////////////////////
+	if (thread->get_fault_flag()) { insert_bit_flip(data); }
+	////////////////////////////////////////////////
+
 	thread->set_operand_value(dst,value, U32_TYPE, thread, pI);
 }
 
@@ -1178,6 +1202,10 @@ void atom_callback( const inst_t* inst, ptx_thread_info* thread)
       }
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(op_result); }
+   ////////////////////////////////////////////////
+
    // Write operation result into  memory
    // (i.e. copy src1_data to dst)
    if ( data_ready ) {
@@ -1345,6 +1373,10 @@ void bra_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    const operand_info &target  = pI->dst();
    ptx_reg_t target_pc = thread->get_operand_value(target, target, U32_TYPE, thread, 1);
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(target_pc); }
+   ////////////////////////////////////////////////
+
    thread->m_branch_taken = true;
    thread->set_npc(target_pc);
 }
@@ -1354,6 +1386,10 @@ void brx_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    const operand_info &target  = pI->dst();
    ptx_reg_t target_pc = thread->get_operand_value(target, target, U32_TYPE, thread, 1);
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(target_pc); }
+   ////////////////////////////////////////////////
+
    thread->m_branch_taken = true;
    thread->set_npc(target_pc);
 }
@@ -1362,6 +1398,10 @@ void break_impl( const ptx_instruction *pI, ptx_thread_info *thread )
 {
    const operand_info &target  = thread->pop_breakaddr();
    ptx_reg_t target_pc = thread->get_operand_value(target, target, U32_TYPE, thread, 1);
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(target_pc); }
+   ////////////////////////////////////////////////
 
    thread->m_branch_taken = true;
    thread->set_npc(target_pc);
@@ -1455,6 +1495,11 @@ void callp_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    } 
 
    thread->callstack_push_plus(callee_pc + pI->inst_size(), callee_rpc, return_var_src, return_var_dst, call_uid_next++);
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(target_pc); }
+   ////////////////////////////////////////////////
+
    thread->set_npc(target_pc);
 }
 
@@ -1491,6 +1536,10 @@ void clz_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       a.u64 = a.u64 << 1;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, B32_TYPE, thread, pI);
 }
 
@@ -1514,6 +1563,10 @@ void cnot_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -1536,6 +1589,10 @@ void cos_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(0); 
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
@@ -2089,6 +2146,10 @@ void cvt_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data = result;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst, data, to_type, thread, pI );
 }
 
@@ -2127,6 +2188,12 @@ void cvta_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    
    ptx_reg_t to_addr;
    to_addr.u64 = to_addr_hw;
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(to_addr); }
+   ////////////////////////////////////////////////
+
+
    thread->set_reg(dst.get_symbol(),to_addr);
 }
 
@@ -2174,6 +2241,10 @@ void div_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    case F64_TYPE: case FF64_TYPE: data.f64 = src1_data.f64 / src2_data.f64; break;
    default: assert(0); break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
    thread->set_operand_value(dst,data, i_type, thread,pI);
 }
 
@@ -2198,6 +2269,10 @@ void ex2_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
    
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,data, i_type, thread,pI);
 }
 
@@ -2317,8 +2392,14 @@ void ld_exec( const ptx_instruction *pI, ptx_thread_info *thread )
    type_info_key::type_decode(type,size,t);
    if (!vector_spec) {
       mem->read(addr,size/8,&data.s64);
-      if( type == S16_TYPE || type == S32_TYPE ) 
-         sign_extend(data,size,dst);
+      if( type == S16_TYPE || type == S32_TYPE ) {
+    	  sign_extend(data,size,dst);
+      }
+
+	   ////////////////////////////////////////////////
+	   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+	   ////////////////////////////////////////////////
+
       thread->set_operand_value(dst,data, type, thread, pI);
    } else {
       ptx_reg_t data1, data2, data3, data4;
@@ -2328,11 +2409,25 @@ void ld_exec( const ptx_instruction *pI, ptx_thread_info *thread )
          mem->read(addr+2*size/8,size/8,&data3.s64);
          if (vector_spec != V3_TYPE) { //v4
             mem->read(addr+3*size/8,size/8,&data4.s64);
+
+     	   ////////////////////////////////////////////////
+     	   if (thread->get_fault_flag()) { insert_bit_flip(data1); }
+     	   ////////////////////////////////////////////////
             thread->set_vector_operand_values(dst,data1,data2,data3,data4);
          } else //v3
-            thread->set_vector_operand_values(dst,data1,data2,data3,data3);
+         {
+      	   ////////////////////////////////////////////////
+      	   if (thread->get_fault_flag()) { insert_bit_flip(data1); }
+      	   ////////////////////////////////////////////////
+        	 thread->set_vector_operand_values(dst,data1,data2,data3,data3);
+         }
       } else //v2
-         thread->set_vector_operand_values(dst,data1,data2,data2,data2);
+      {
+   	   ////////////////////////////////////////////////
+   	   if (thread->get_fault_flag()) { insert_bit_flip(data1); }
+   	   ////////////////////////////////////////////////
+    	  thread->set_vector_operand_values(dst,data1,data2,data2,data2);
+      }
    }
    thread->m_last_effective_address = addr;
    thread->m_last_memory_space = space; 
@@ -2367,6 +2462,10 @@ void lg2_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(0);
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
@@ -2413,6 +2512,9 @@ void mad24_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
    thread->set_operand_value(dst, d, i_type, thread, pI);
 }
 
@@ -2540,6 +2642,11 @@ void mad_def( const ptx_instruction *pI, ptx_thread_info *thread, bool use_carry
       assert(0);
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst, d, i_type, thread, pI, overflow, carry);
 }
 
@@ -2580,6 +2687,10 @@ void max_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -2614,6 +2725,10 @@ void min_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(0);
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
@@ -2678,9 +2793,19 @@ void mov_impl( const ptx_instruction *pI, ptx_thread_info *thread )
                break;
             }
          }
+
+  	   ////////////////////////////////////////////////
+  	   if (thread->get_fault_flag()) { insert_bit_flip(v[0]); }
+  	   ////////////////////////////////////////////////
+
          thread->set_vector_operand_values(dst,v[0],v[1],v[2],v[3]);
       } else {
-         thread->set_operand_value(dst,tmp_bits, i_type, thread, pI);
+
+    	  ////////////////////////////////////////////////
+    	  if (thread->get_fault_flag()) { insert_bit_flip(tmp_bits); }
+    	  ////////////////////////////////////////////////
+
+    	  thread->set_operand_value(dst,tmp_bits, i_type, thread, pI);
       }
    } else if (i_type == PRED_TYPE and src1.is_literal() == true) {
       // in ptx, literal input translate to predicate as 0 = false and 1 = true 
@@ -2688,12 +2813,20 @@ void mov_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data = thread->get_operand_value(src1, dst, i_type, thread, 1);
 
       ptx_reg_t finaldata; 
-      finaldata.pred = (data.u32 == 0)? 1 : 0;  // setting zero-flag in predicate 
+      finaldata.pred = (data.u32 == 0)? 1 : 0;  // setting zero-flag in predicate
+
+	   ////////////////////////////////////////////////
+	   if (thread->get_fault_flag()) { insert_bit_flip(finaldata); }
+	   ////////////////////////////////////////////////
+
       thread->set_operand_value(dst, finaldata, i_type, thread, pI);
    } else {
 
       data = thread->get_operand_value(src1, dst, i_type, thread, 1);
 
+	   ////////////////////////////////////////////////
+	   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+	   ////////////////////////////////////////////////
      thread->set_operand_value(dst, data, i_type, thread, pI);
 
    }
@@ -2741,6 +2874,10 @@ void mul24_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    } else if (pI->is_lo()) {
       data.mask_and(0,0xFFFFFFFF);
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst, data, i_type, thread, pI);
 }
@@ -2843,6 +2980,21 @@ void mul_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) {
+	   insert_bit_flip(d);
+//
+//		printf("dest(32): %u\n", d.u32);
+//		printf("dest(32): %d\n", d.s32);
+//		printf("dest(32): %f\n", d.f32);
+//		printf("dest(64): %u\n", d.u64);
+//		printf("dest(64): %d\n", d.s64);
+//		printf("dest(64): %f\n", d.f64);
+   }
+   ////////////////////////////////////////////////
+
+
+
    thread->set_operand_value(dst, d, i_type, thread, pI);
 }
 
@@ -2874,6 +3026,10 @@ void neg_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    default: assert(0); break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,data, to_type, thread, pI);
 }
 
@@ -2896,6 +3052,10 @@ void nandn_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data.pred = (~src1_data.pred & src2_data.pred);
    else
       data.u64 = ~(src1_data.u64 & ~src2_data.u64);
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI);
 
@@ -2920,6 +3080,10 @@ void norn_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data.pred = ~(src1_data.pred & ~(src2_data.pred));
    else
       data.u64 = ~(src1_data.u64) & src2_data.u64;
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI);
 
@@ -2946,6 +3110,10 @@ void not_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -2966,6 +3134,10 @@ void or_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    else
       data.u64 = src1_data.u64 | src2_data.u64;
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
 
@@ -2985,6 +3157,10 @@ void orn_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data.pred = ~(~(src1_data.pred) | (src2_data.pred));
    else
       data.u64 = src1_data.u64 | ~src2_data.u64;
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
@@ -3013,6 +3189,10 @@ void popc_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(0); 
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
@@ -3044,6 +3224,10 @@ void rcp_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
 
@@ -3062,6 +3246,10 @@ void rem_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    src2_data = thread->get_operand_value(src2, dst, i_type, thread, 1);
 
    data.u64 = src1_data.u64 % src2_data.u64;
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
@@ -3129,6 +3317,10 @@ void rsqrt_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -3163,6 +3355,10 @@ void sad_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -3183,6 +3379,10 @@ void selp_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    //predicate value was changed so the lowest bit being set means the zero flag is set.
    //As a result, the value of c.pred must be inverted to get proper behavior
    d = (!(c.pred & 0x0001))?a:b;
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,d, PRED_TYPE, thread, pI);
 }
@@ -3385,6 +3585,10 @@ void setp_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    //the way ptxplus handles the zero flag, 1 = false and 0 = true
    data.pred = (t==0); //inverting predicate since ptxplus uses "1" for a set zero flag
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,data, PRED_TYPE, thread, pI);
 }
 
@@ -3432,6 +3636,10 @@ void set_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data.u32 = (t!=0)?0xFFFFFFFF:0;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst, data, pI->get_type(), thread, pI);
 
 }
@@ -3474,6 +3682,10 @@ void shl_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(0); 
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst, d, i_type, thread, pI);
 }
@@ -3556,6 +3768,10 @@ void shr_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -3578,6 +3794,10 @@ void sin_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(0); 
       break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
@@ -3620,6 +3840,10 @@ void slct_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    default: assert(0);
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -3651,6 +3875,10 @@ void sqrt_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       break;
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(d); }
+   ////////////////////////////////////////////////
+
    thread->set_operand_value(dst,d, i_type, thread, pI);
 }
 
@@ -3681,26 +3909,46 @@ void st_impl( const ptx_instruction *pI, ptx_thread_info *thread )
 
    if (!vector_spec) {
       data = thread->get_operand_value(src1, dst, type, thread, 1);
+
+	   ////////////////////////////////////////////////
+	   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+	   ////////////////////////////////////////////////
+
       mem->write(addr,size/8,&data.s64,thread,pI);
    } else {
       if (vector_spec == V2_TYPE) {
          ptx_reg_t* ptx_regs = new ptx_reg_t[2]; 
          thread->get_vector_operand_values(src1, ptx_regs, 2); 
+
+  	   ////////////////////////////////////////////////
+  	   if (thread->get_fault_flag()) { insert_bit_flip(ptx_regs[0]); }
+  	   ////////////////////////////////////////////////
+
          mem->write(addr,size/8,&ptx_regs[0].s64,thread,pI);
          mem->write(addr+size/8,size/8,&ptx_regs[1].s64,thread,pI);
          delete [] ptx_regs;
       }
       if (vector_spec == V3_TYPE) {
-         ptx_reg_t* ptx_regs = new ptx_reg_t[3]; 
-         thread->get_vector_operand_values(src1, ptx_regs, 3); 
-         mem->write(addr,size/8,&ptx_regs[0].s64,thread,pI);
-         mem->write(addr+size/8,size/8,&ptx_regs[1].s64,thread,pI);
-         mem->write(addr+2*size/8,size/8,&ptx_regs[2].s64,thread,pI);
-         delete [] ptx_regs;
+    	  ptx_reg_t* ptx_regs = new ptx_reg_t[3];
+    	  thread->get_vector_operand_values(src1, ptx_regs, 3);
+
+    	  ////////////////////////////////////////////////
+    	  if (thread->get_fault_flag()) { insert_bit_flip(ptx_regs[0]); }
+    	  ////////////////////////////////////////////////
+
+    	  mem->write(addr,size/8,&ptx_regs[0].s64,thread,pI);
+    	  mem->write(addr+size/8,size/8,&ptx_regs[1].s64,thread,pI);
+    	  mem->write(addr+2*size/8,size/8,&ptx_regs[2].s64,thread,pI);
+    	  delete [] ptx_regs;
       }
       if (vector_spec == V4_TYPE) {
          ptx_reg_t* ptx_regs = new ptx_reg_t[4]; 
          thread->get_vector_operand_values(src1, ptx_regs, 4); 
+
+  	   ////////////////////////////////////////////////
+  	   if (thread->get_fault_flag()) { insert_bit_flip(ptx_regs[0]); }
+  	   ////////////////////////////////////////////////
+
          mem->write(addr,size/8,&ptx_regs[0].s64,thread,pI);
          mem->write(addr+size/8,size/8,&ptx_regs[1].s64,thread,pI);
          mem->write(addr+2*size/8,size/8,&ptx_regs[2].s64,thread,pI);
@@ -3769,6 +4017,10 @@ void sub_impl( const ptx_instruction *pI, ptx_thread_info *thread )
    case F64_TYPE: case FF64_TYPE: data.f64 = src1_data.f64 - src2_data.f64; break;
    default: assert(0); break;
    }
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI, overflow, carry);
 }
@@ -4156,6 +4408,10 @@ void tex_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       assert(texAttr->m_readmode == cudaReadModeElementType); 
    }
 
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data1); }
+   ////////////////////////////////////////////////
+
    thread->set_vector_operand_values(dst,data1,data2,data3,data4);
 }
 
@@ -4217,6 +4473,11 @@ void vote_impl( const ptx_instruction *pI, ptx_thread_info *thread )
          ptx_reg_t data = ballot_result; 
          for( std::list<ptx_thread_info*>::iterator t=threads_in_warp.begin(); t!=threads_in_warp.end(); ++t ) {
             const operand_info &dst = pI->dst();
+
+     	   ////////////////////////////////////////////////
+     	   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+     	   ////////////////////////////////////////////////
+
             (*t)->set_operand_value(dst,data, pI->get_type(), (*t), pI);
          }
       } else {
@@ -4234,6 +4495,11 @@ void vote_impl( const ptx_instruction *pI, ptx_thread_info *thread )
 
          for( std::list<ptx_thread_info*>::iterator t=threads_in_warp.begin(); t!=threads_in_warp.end(); ++t ) {
             const operand_info &dst = pI->dst();
+
+     	   ////////////////////////////////////////////////
+     	   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+     	   ////////////////////////////////////////////////
+
             (*t)->set_operand_value(dst,data, PRED_TYPE, (*t), pI);
          }
       }
@@ -4258,6 +4524,10 @@ void xor_impl( const ptx_instruction *pI, ptx_thread_info *thread )
       data.pred = ~(~(src1_data.pred) ^ ~(src2_data.pred));
    else
       data.u64 = src1_data.u64 ^ src2_data.u64;
+
+   ////////////////////////////////////////////////
+   if (thread->get_fault_flag()) { insert_bit_flip(data); }
+   ////////////////////////////////////////////////
 
    thread->set_operand_value(dst,data, i_type, thread, pI);
 }
@@ -4327,5 +4597,33 @@ ptx_reg_t srcOperandModifiers(ptx_reg_t opData, operand_info opInfo, operand_inf
    }
 
    return result;
+}
+
+////////////////////////////////////////////////////////////////////
+void insert_bit_flip(ptx_reg_t& dest)
+{
+	unsigned long long mask = 0;
+	int mask_shift = rand()%64;
+//	printf("dest(32): %u\n", dest.u32);
+//	printf("dest(32): %d\n", dest.s32);
+//	printf("dest(32): %f\n", dest.f32);
+//	printf("dest(64): %u\n", dest.u64);
+//	printf("dest(64): %d\n", dest.s64);
+//	printf("dest(64): %f\n", dest.f64);
+	mask = 0x01 << mask_shift;
+//	printf("mask_shift: %d\n", mask_shift);
+//	printf("mask      : %x\n", mask);
+
+
+	dest.u64 = dest.u64 ^ mask;
+
+//	printf("dest(32): %u\n", dest.u32);
+//	printf("dest(32): %d\n", dest.s32);
+//	printf("dest(32): %f\n", dest.f32);
+//	printf("dest(64): %u\n", dest.u64);
+//	printf("dest(64): %d\n", dest.s64);
+//	printf("dest(64): %f\n", dest.f64);
+
+
 }
 

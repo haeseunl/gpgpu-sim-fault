@@ -90,6 +90,8 @@ public:
 	{
 		printf(" - print effective fault detail...\n") ;
 		printf("  - Injected time  : %u\n", faulty_clk);
+		printf("  - SM               : %d\n", nSM);
+		printf("  - Faulty loc       : %d\n", faulty_comp);
 		printf("  - pc             : 0x%x\n", pc);
 		printf("  - inst           : %s\n", inst_string.c_str());
 		printf("  - active cnt     : %d\n", nActiveCnt);
@@ -97,6 +99,24 @@ public:
 		printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", cta_id.x, cta_id.y, cta_id.z);
 		printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", thd_id.x, thd_id.y, thd_id.z);
 	}
+
+	int find_match(int sm_id, unsigned pc, std::string& asm_str, dim3 cta_id_in, dim3 thd_id_in) {
+		int ret = 0;
+
+		if (this->nSM==sm_id && strcmp(this->inst_string.c_str(), asm_str.c_str())==0) {
+//			printf("this->inst_string: %s\n", this->inst_string.c_str());
+//			printf("asm_str          : %s\n", asm_str.c_str());
+			if (this->cta_id.x==cta_id_in.x && this->cta_id.y==cta_id_in.y && this->cta_id.z==cta_id_in.z) {
+				if (this->thd_id.x==thd_id_in.x && this->thd_id.y==thd_id_in.y && this->thd_id.z==thd_id_in.z) {
+					ret = 1;
+				}
+			}
+		}
+
+
+		return ret;
+	}
+
 };
 
 

@@ -1227,9 +1227,9 @@ void shader_core_ctx::execute()
         	fault_final = rand()%candidate.size();
         	printf(" Final call.. Fault is injected (%d)th candidate. Detail information is following..\n", fault_final);
         	assert(fault_final<candidate.size());
-        	candidate[fault_final]->print_detail_info(tot_clk_cycle);
+        	candidate[fault_final]->print_detail_info(tot_clk_cycle, this->get_sid(), fault_injection_list[0]->faulty_comp);
         	assert(fault_injection_write!=NULL);
-        	candidate[fault_final]->store_applied_fault_info(fault_injection_write, tot_clk_cycle);
+        	candidate[fault_final]->store_applied_fault_info(fault_injection_write, tot_clk_cycle, this->get_sid(), fault_injection_list[0]->faulty_comp);
 
     	}
     	else {

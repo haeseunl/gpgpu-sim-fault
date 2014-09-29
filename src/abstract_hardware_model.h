@@ -1003,24 +1003,40 @@ public:
     void set_dim3_thd_id(dim3 thd_id_in) { thd_id = thd_id_in; }
     dim3 get_dim3_thd_id(void) { return thd_id; }
 
-    void print_detail_info(unsigned long long clk) {
+    void print_detail_info(unsigned long long clk, int sm_id, int loc) {
 		printf(" - print instruction detail...\n") ;
 		printf("  - Injected time  : %u\n", clk);
+		printf("  - SM               : %d\n", sm_id);
+		printf("  - Faulty loc       : %d\n", loc);
 		printf("  - pc             : 0x%x\n", this->pc);
 		printf("  - inst           : %s\n", this->get_asm_str().c_str());
 		printf("  - active cnt     : %d\n", this->active_count());
 		printf("  - inst oprnd_type: %d\n", this->oprnd_type);
 		printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", cta_id.x, cta_id.y, cta_id.z);
 		printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", thd_id.x, thd_id.y, thd_id.z);
-		printf("  - tgt_id.x: %d | tgt_id.y: %d | tgt_id.z: %d\n", (thd_id.x-(rand()%thd_id.x)), thd_id.y, thd_id.z);
+		//printf("  - tgt_id.x: %d | tgt_id.y: %d | tgt_id.z: %d\n", (thd_id.x-(rand()%thd_id.x)), thd_id.y, thd_id.z);
     }
 
-    void store_applied_fault_info(FILE* fp, unsigned long long clk) {
+    void print_faulty_inst_info(unsigned long long clk, int sm_id, int loc) {
+		printf(" - print instruction detail...\n") ;
+		printf("  - Injected time  : %u\n", clk);
+		printf("  - SM               : %d\n", sm_id);
+		printf("  - Faulty loc       : %d\n", loc);
+		printf("  - pc             : 0x%x\n", this->pc);
+		printf("  - inst           : %s\n", this->get_asm_str().c_str());
+		printf("  - active cnt     : %d\n", this->active_count());
+		printf("  - inst oprnd_type: %d\n", this->oprnd_type);
+		//printf("  - tgt_id.x: %d | tgt_id.y: %d | tgt_id.z: %d\n", (thd_id.x-(rand()%thd_id.x)), thd_id.y, thd_id.z);
+    }
+
+    void store_applied_fault_info(FILE* fp, unsigned long long clk, int sm_id, int loc) {
     	int active_cnt = this->active_count();
     	int target_tid = thd_id.x - (rand()%thd_id.x);
     	fprintf(fp, "-----------------------------------\n") ;
 		fprintf(fp, "- Fault detail...\n") ;
 		fprintf(fp, "- Injected time  : %u\n", clk);
+		fprintf(fp, "- SM             : %d\n", sm_id);
+		fprintf(fp, "- Faulty loc     : %d\n", loc);
 		fprintf(fp, "- PC (dec)       : %u\n", this->pc);
 		fprintf(fp, "- Inst string    : %s\n", this->get_asm_str().c_str());
 		fprintf(fp, "- Active cnt     : %d\n", active_cnt);

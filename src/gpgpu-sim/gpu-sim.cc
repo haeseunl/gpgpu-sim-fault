@@ -1610,6 +1610,12 @@ void ReadFault(std::vector<std::string>& linedata, int fault_num) {
 		new_fault->faulty_clk = extract_ull(linedata[line_idx], base);
 		line_idx++;
 
+		new_fault->nSM = extract_number(linedata[line_idx], base);
+		line_idx++;
+
+		new_fault->faulty_comp = (gpu_comp_list)extract_number(linedata[line_idx], base);
+		line_idx++;
+
 		new_fault->pc = (unsigned)extract_ull(linedata[line_idx], base);
 		line_idx++;
 

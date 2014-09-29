@@ -271,6 +271,7 @@ public:
       m_hw_wid=wid;
       m_hw_tid=tid;
       m_functionalSimulationMode = fsim;
+      fault_apply_flag = 0;
    }
 
    void ptx_fetch_inst( inst_t &inst ) const;
@@ -428,6 +429,9 @@ public:
    ptx_cta_info   *m_cta_info;
    ptx_reg_t m_last_set_operand_value;
 
+   void set_fault_flag(int flag) { fault_apply_flag = flag; }
+   int get_fault_flag(void) { return fault_apply_flag; }
+
 private:
 
    bool m_functionalSimulationMode; 
@@ -471,6 +475,9 @@ private:
    bool m_enable_debug_trace;
 
    std::stack<class operand_info> m_breakaddrs;
+
+
+   int fault_apply_flag;
 };
 
 addr_t generic_to_local( unsigned smid, unsigned hwtid, addr_t addr );
