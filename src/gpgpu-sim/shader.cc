@@ -1625,7 +1625,9 @@ int check_inst_detail(warp_inst_t* m_pipeline_reg, int m_fu_n, int faulty_comp)
 			ret = 1;
 			//printf("[Fault Injection] FLOAT_ALU match!!\n");
 		}
-		if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP || m_pipeline_reg->oprnd_type==UN_OP)) {
+		if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP))
+		//if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP || m_pipeline_reg->oprnd_type==UN_OP))
+		{
 			ret = 1;
 			//printf("[Fault Injection] INT_ALU match!!\n");
 		}

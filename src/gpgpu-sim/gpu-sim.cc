@@ -105,6 +105,7 @@ unsigned int gpu_stall_icnt2sh = 0;
 int fault_injection_phase = 0;
 int fault_injection_period = 0;
 int fault_injection_number = 0;
+unsigned long long fault_injection_clk_limit = 0;
 const char *fault_list = "FaultList.log";
 std::ifstream fault_injection_read;
 FILE* fault_injection_write=NULL;
@@ -459,6 +460,10 @@ void gpgpu_sim_config::reg_options(option_parser_t opp)
     option_parser_register(opp, "-fault_injection_phase", OPT_INT32,
                           &fault_injection_phase, "Fault injection phase. Default 0 (i.e. all)",
                           "0");
+
+    option_parser_register(opp, "-fault_injection_clk_limit", OPT_UINT64,
+                          &fault_injection_clk_limit, "Fault injection clock limit. Default 0 (i.e. all)",
+                          "-1");
 
    ptx_file_line_stats_options(opp);
 }
@@ -1188,6 +1193,12 @@ void gpgpu_sim::cycle()
 		printf("[Fault injection] Create fault injection list..\n");
 		create_fault_list(tot_clk_cycle);
 	}
+
+	if (fault_injection_phase==APPLY_FAULT && fault_injection_clk_limit<tot_clk_cycle && fault_injection_clk_limit>0) {
+		printf("[Fault injection] Application is stuck... stop the application.\n");
+		std::exit(1);
+	}
+
 
 
 
