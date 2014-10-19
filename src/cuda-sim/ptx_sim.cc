@@ -491,9 +491,11 @@ const ptx_instruction *ptx_thread_info::get_inst( addr_t pc ) const
 
 void ptx_thread_info::dump_regs( FILE *fp )
 {
+
+
    if(m_regs.empty()) return;
    if(m_regs.back().empty()) return;
-   fprintf(fp,"Register File Contents:\n");
+   fprintf(fp,"Register File Contents: (Total clock cycle: %llu)\n", (gpu_sim_cycle + gpu_tot_sim_cycle));
    fflush(fp);
    reg_map_t::const_iterator r;
    for ( r=m_regs.back().begin(); r != m_regs.back().end(); ++r ) {

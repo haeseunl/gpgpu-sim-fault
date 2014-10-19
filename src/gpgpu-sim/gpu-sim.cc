@@ -1199,7 +1199,7 @@ void gpgpu_sim::cycle()
 		std::exit(1);
 	}
 
-
+	this->set_gpu_global_clk(tot_clk_cycle);
 
 
 

@@ -1114,9 +1114,6 @@ protected:
     ptx_instruction *pInst;
     ptx_thread_info *pThdinfo;
 
-
-
-
 };
 
 void move_warp( warp_inst_t *&dst, warp_inst_t *&src );
@@ -1146,6 +1143,9 @@ class core_t {
                 m_warp_count += 1;
             }
             assert( m_warp_count * m_warp_size > 0 );
+
+            //printf("[ptx_thread_info**]m_warp_count * m_warp_size: %d\n", m_warp_count * m_warp_size);
+
             m_thread = ( ptx_thread_info** )
                      calloc( m_warp_count * m_warp_size,
                              sizeof( ptx_thread_info* ) );

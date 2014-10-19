@@ -494,6 +494,8 @@ private:
    std::string executed_kernel_info_string(); //< format the kernel information into a string for stat printout
    void clear_executed_kernel_info(); //< clear the kernel information after stat printout
 
+   unsigned long long gpu_global_clk;
+
 public:
    unsigned long long  gpu_sim_insn;
    unsigned long long  gpu_tot_sim_insn;
@@ -507,6 +509,9 @@ public:
    bool has_special_cache_config(std::string kernel_name);
    void change_cache_config(FuncCache cache_config);
    void set_cache_config(std::string kernel_name);
+
+   unsigned long long get_gpu_global_clk(void) { return gpu_global_clk; };
+   void set_gpu_global_clk(unsigned long long tot_clk) { gpu_global_clk = tot_clk; };
 
 };
 

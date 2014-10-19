@@ -71,6 +71,30 @@
 #define WRITE_MASK_SIZE 8
 
 
+
+////////////////////////////////////////////////////////////////////////////////
+class reg_info
+{
+public:
+	std::string name;
+	unsigned int reg_id;
+
+	std::vector<unsigned long long> start;
+	std::vector<unsigned long long> end;
+
+};
+
+class warp_vuln_info
+{
+public:
+	std::vector<reg_info*> vuln_regs;
+	dim3 cta_id;
+	dim3 thd_id;
+};
+////////////////////////////////////////////////////////////////////////////////
+
+
+
 class thread_ctx_t {
 public:
    unsigned m_cta_id; // hardware CTA this thread belongs
@@ -1840,6 +1864,11 @@ public:
     // is that the dynamic_warp_id is a running number unique to every warp
     // run on this shader, where the warp_id is the static warp slot.
     unsigned m_dynamic_warp_id;
+
+    /////////////////////////////////////////////////////////////
+    std::vector<warp_vuln_info*> warp_vuln_period;
+    /////////////////////////////////////////////////////////////
+
 };
 
 class simt_core_cluster {
@@ -1938,5 +1967,8 @@ private:
 
 
 inline int scheduler_unit::get_sid() const { return m_shader->get_sid(); }
+
+
+
 
 #endif /* SHADER_H */

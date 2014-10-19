@@ -711,10 +711,16 @@ __host__ cudaError_t CUDARTAPI cudaMemset(void *mem, int c, size_t count)
 	return g_last_cudaError = cudaSuccess;
 }
 
+
+// TODO:
 __host__ cudaError_t CUDARTAPI cudaMemset2D(void *mem, size_t pitch, int c, size_t width, size_t height)
 {
-	cuda_not_implemented(__my_func__,__LINE__);
-	return g_last_cudaError = cudaErrorUnknown;
+	//cuda_not_implemented(__my_func__,__LINE__);
+	//return g_last_cudaError = cudaErrorUnknown;
+
+	CUctx_st *context = GPGPUSim_Context();
+	unsigned long long current_clk = context->get_device()->get_gpgpu()->get_gpu_global_clk();
+	printf("[cudaMemset2D] Current GPU global clock: %u\n", current_clk);
 }
 
 

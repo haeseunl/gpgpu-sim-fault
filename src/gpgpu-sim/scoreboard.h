@@ -45,6 +45,12 @@ public:
     void releaseRegister(unsigned wid, unsigned regnum);
 
     bool checkCollision(unsigned wid, const inst_t *inst) const;
+
+
+    void PrintRegNums(unsigned wid, const inst_t *inst) const;
+    bool checkCollisionReg( unsigned wid, int reg_num);
+
+
     bool pendingWrites(unsigned wid) const;
     void printContents() const;
     const bool islongop(unsigned warp_id, unsigned regnum);

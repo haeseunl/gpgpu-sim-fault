@@ -36,7 +36,6 @@
 #include "../cuda-sim/ptx_sim.h"
 #include "../cuda-sim/ptx-stats.h"
 #include "../cuda-sim/cuda-sim.h"
-#include "gpu-sim.h"
 #include "mem_fetch.h"
 #include "mem_latency_stat.h"
 #include "visualizer.h"
@@ -680,6 +679,15 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
     execute_warp_inst_t(inst);
     if( inst.is_load() || inst.is_store() )
         inst.generate_mem_accesses();
+
+    // Setup the timing info for vulnerable period
+	//inst.get_asm_str();
+
+	//inst.get_thd_info()
+
+
+    printf("inst.warpId(): %d\n" , inst.warp_id());
+
 }
 
 void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t* next_inst, const active_mask_t &active_mask, unsigned warp_id )
@@ -812,6 +820,20 @@ void scheduler_unit::cycle()
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
 
+    for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
+              iter != m_next_cycle_prioritized_warps.end();
+              iter++ )
+    {
+        if ( (*iter) == NULL || (*iter)->done_exit() ) {
+            continue;
+        }
+    	unsigned warp_id = (*iter)->get_warp_id();
+    	if (!m_scoreboard->checkCollisionReg(warp_id, 6)) {
+    		//printf( "[check] Reg id 6 is ready to use at (clk: %u)\n", gpu_sim_cycle+gpu_tot_sim_cycle);
+    	}
+
+    }
+
     order_warps();
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
           iter != m_next_cycle_prioritized_warps.end();
@@ -822,6 +844,8 @@ void scheduler_unit::cycle()
         }
         SCHED_DPRINTF( "Testing (warp_id %u, dynamic_warp_id %u)\n",
                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
+//        printf( "Testing (warp_id %u, dynamic_warp_id %u)\n",
+//                       (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
         unsigned warp_id = (*iter)->get_warp_id();
         unsigned checked=0;
         unsigned issued=0;
@@ -848,6 +872,10 @@ void scheduler_unit::cycle()
                     if ( !m_scoreboard->checkCollision(warp_id, pI) ) {
                         SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) passes scoreboard\n",
                                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
+//                        printf( "Warp (warp_id %u, dynamic_warp_id %u) passes scoreboard",
+//                                       (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
+
+                        //m_scoreboard->PrintRegNums(warp_id, pI);
                         ready_inst = true;
                         const active_mask_t &active_mask = m_simt_stack[warp_id]->get_active_mask();
                         assert( warp(warp_id).inst_in_pipeline() );
@@ -878,6 +906,7 @@ void scheduler_unit::cycle()
                     } else {
                         SCHED_DPRINTF( "Warp (warp_id %u, dynamic_warp_id %u) fails scoreboard\n",
                                        (*iter)->get_warp_id(), (*iter)->get_dynamic_warp_id() );
+                        //m_scoreboard->printContents();
                     }
                 }
             } else if( valid ) {

@@ -89,6 +89,7 @@ void Scoreboard::reserveRegisters(const class warp_inst_t* inst)
                             "Reserved register - warp:%d, reg: %d\n",
                             inst->warp_id(),
                             inst->out[r] );
+            printf( "[ScoreBoard] Reserved register - warp:%d, reg: %d\n", inst->warp_id(), inst->out[r] );
         }
     }
 
@@ -158,6 +159,37 @@ bool Scoreboard::checkCollision( unsigned wid, const class inst_t *inst ) const
 		}
 	return false;
 }
+
+
+void Scoreboard::PrintRegNums( unsigned wid, const class inst_t *inst ) const
+{
+	// Get list of all input and output registers
+	std::set<int> inst_regs;
+
+	printf("Regs: out[0]:%d | out[1]:%d | out[2]:%d | out[3]:%d\n", inst->out[0], inst->out[1], inst->out[2], inst->out[3]);
+	printf("Regs: in[0] :%d | in[1] :%d | in[2] :%d | in[3] :%d\n", inst->in[0], inst->in[1], inst->in[2], inst->in[3]);
+	printf("Regs: pred  :%d | ar1   :%d | iar2  :%d \n", inst->pred, inst->ar1, inst->ar2);
+}
+
+
+
+bool Scoreboard::checkCollisionReg( unsigned wid, int reg_num)
+{
+	// Get list of all input and output registers
+	std::set<int> inst_regs;
+
+	inst_regs.insert(reg_num);
+
+	// Check for collision, get the intersection of reserved registers and instruction registers
+	std::set<int>::const_iterator it2;
+	for ( it2=inst_regs.begin() ; it2 != inst_regs.end(); it2++ )
+		if(reg_table[wid].find(*it2) != reg_table[wid].end()) {
+			return true;
+		}
+	return false;
+}
+
+
 
 bool Scoreboard::pendingWrites(unsigned wid) const
 {
