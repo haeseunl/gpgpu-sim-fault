@@ -52,6 +52,7 @@
     
 
 /////////////////////////////////////////////////////////////////////////////
+#include "../cuda-sim/ptx_ir.h"
 #include "fault_injection.h"
 extern std::string gpu_comp_name[];
 /////////////////////////////////////////////////////////////////////////////
@@ -680,13 +681,90 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
     if( inst.is_load() || inst.is_store() )
         inst.generate_mem_accesses();
 
+    // TODO:
     // Setup the timing info for vulnerable period
 	//inst.get_asm_str();
 
+
 	//inst.get_thd_info()
+    // get instruction info
+    warp_vuln_info* vuln_warp = this->get_exist_warp(&inst);
+
+    if (vuln_warp == NULL) {
+    	vuln_warp = new warp_vuln_info;
+    	vuln_warp->asm_string = inst.get_asm_str();
+    	vuln_warp->set_cta_id(inst.get_dim3_cta_id());
+    	vuln_warp->set_thd_id(inst.get_dim3_thd_id());
+    	vuln_warp->hd_warp_id = inst.get_m_warp_id();
 
 
-    printf("inst.warpId(): %d\n" , inst.warp_id());
+    	printf("Create new warp info (m_warp_size: %d)\n", m_warp_size);
+    	this->vuln_warp_info.push_back(vuln_warp);
+    	inst.print_detail_info();
+    }
+    else {
+    	//printf("Use existing warp info\n");
+    }
+
+    std::string reg_name;
+    int 		reg_id;
+    reg_info* dst_info;
+    // Get dest operands info
+    if (inst.get_num_operands()>0) {
+    	printf("[%s] get_num_operands(): %d\n", inst.get_asm_str().c_str(), inst.get_num_operands());
+
+    	// destination
+    	operand_info* dst = inst.get_inst_ptr()->dst_ptr();
+    	if (!dst->is_vector()) {
+    		reg_name = dst->get_symbol()->name();
+    		reg_id = dst->reg_num();
+    		printf("dst->get_symbol()->name(): %s | dst->reg_num(): %d\n", reg_name.c_str(), reg_id);
+    		dst_info = vuln_warp->get_reg_info(reg_name, reg_id);
+
+    		if (dst_info==NULL) {
+    			dst_info = new reg_info;
+    			dst_info->name = reg_name;
+    			dst_info->reg_id = reg_id;
+    			dst_info->set_flag(true);
+    			dst_info->set_cnt(0);
+    			dst_info->start.push_back(0);
+    			dst_info->end.push_back(0);
+    			vuln_warp->vuln_regs.push_back(dst_info);
+    		}
+    		else {
+    			dst_info->inc_cnt();
+    			dst_info->start.push_back(0);
+    			dst_info->end.push_back(0);
+    		}
+
+    	}
+    }
+
+//    // Get src operand info
+//    if (inst.get_num_operands()>1) {
+//    	printf("[%s] get_num_operands(): %d\n", inst.get_asm_str().c_str(), inst.get_num_operands());
+//
+//    	for (int i=0; i<inst.get_in_operand_num(); i++) {
+//    		printf("[%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d\n"
+//    				, i, i, inst.get_inst_ptr()->src_ptr(i)->name().c_str(), i, inst.get_inst_ptr()->src_ptr(i)->reg_num());
+//
+//    	}
+//    }
+
+
+
+    // extract register info
+
+
+    //inst.get_thd_info()->get_inst()->in[0]
+
+
+
+
+
+
+
+    //printf("inst.warpId(): %d\n" , inst.warp_id());
 
 }
 
@@ -819,7 +897,10 @@ void scheduler_unit::cycle()
     bool valid_inst = false;  // there was one warp with a valid instruction to issue (didn't require flush due to control hazard)
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
+    unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+    int reg_cnt = 0;
 
+    // TODO:
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
               iter != m_next_cycle_prioritized_warps.end();
               iter++ )
@@ -828,10 +909,20 @@ void scheduler_unit::cycle()
             continue;
         }
     	unsigned warp_id = (*iter)->get_warp_id();
-    	if (!m_scoreboard->checkCollisionReg(warp_id, 6)) {
-    		//printf( "[check] Reg id 6 is ready to use at (clk: %u)\n", gpu_sim_cycle+gpu_tot_sim_cycle);
-    	}
+    	warp_vuln_info* warp = m_shader->get_warp_data(warp_id);
 
+    	if (warp != NULL) {
+    		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
+    	    	if (!m_scoreboard->checkCollisionReg(warp->hd_warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_flag()==true) {
+    	    		printf( "[check] Reg [%s] (id: %d) is ready to use at (clk: %u | ref cnt: %d)\n"
+    	    				, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, tot_clk, reg_cnt);
+    	    		warp->vuln_regs[i]->set_flag(false);
+    	    		reg_cnt = warp->vuln_regs[i]->get_cnt();
+    	    		warp->vuln_regs[i]->start[reg_cnt] = tot_clk;
+    	    		warp->vuln_regs[i]->end[reg_cnt] = tot_clk;
+    	    	}
+    		}
+    	}
     }
 
     order_warps();
@@ -1213,6 +1304,8 @@ void shader_core_ctx::execute()
 		candidate.clear();
     }
 
+    // TODO:
+    unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
     for( unsigned n=0; n < m_num_function_units; n++ ) {
         unsigned multiplier = m_fu[n]->clock_multiplier();
 
@@ -1223,6 +1316,11 @@ void shader_core_ctx::execute()
         		active_lane_num = (int)m_fu[n]->get_active_lanes_in_pipeline();
         		printf("[Fault injection] check pipeline of [%s] (active_lanes: %d)\n", m_fu[n]->get_name().c_str(), active_lane_num);
         		m_fu[n]->check(candidate, n, fault_injection_list[0]->faulty_comp);
+        	}
+        	warp_inst_t* last_stage = m_fu[n]->GetLastStage();
+
+        	if (last_stage!=NULL) {
+        		printf("[Last stage] insn: %s\n", last_stage->get_asm_str().c_str());
         	}
         	m_fu[n]->cycle();
         }
@@ -1718,10 +1816,20 @@ void pipelined_simd_unit::check(std::vector<warp_inst_t*>& candidate, int m_fu_n
     		candidate.push_back(m_dispatch_reg);
     	}
     }
-
-
-
 }
+
+warp_inst_t* pipelined_simd_unit::GetLastStage(void)
+{
+	warp_inst_t* ret = NULL;
+    if( !m_pipeline_reg[0]->empty() ){
+    	//printf("[Fault injection] last stage is not empty..\n");
+    	ret = m_pipeline_reg[0];
+    }
+    return ret;
+}
+
+
+
 ///////////////////////////////////////////////////////////////////////////
 
 
@@ -3658,4 +3766,17 @@ void shader_core_ctx::checkExecutionStatusAndUpdate(warp_inst_t &inst, unsigned 
         }
     }
 }
+
+
+warp_vuln_info* shader_core_ctx::get_exist_warp(warp_inst_t* inst)
+{
+	warp_vuln_info* ret = NULL;
+	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
+		if (this->vuln_warp_info[i]->is_same_warp(inst->get_dim3_cta_id(), inst->get_dim3_thd_id())) {
+			ret = this->vuln_warp_info[i];
+		}
+	}
+	return ret;
+}
+
 

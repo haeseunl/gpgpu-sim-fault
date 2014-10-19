@@ -1070,6 +1070,21 @@ public:
     }
 
 
+    ////////////////////////////////////
+    int get_in_operand_num(void) {
+    	int ret = 0;
+    	if (this->in[0]>0) { ret++; }
+    	if (this->in[1]>0) { ret++; }
+    	if (this->in[2]>0) { ret++; }
+    	if (this->in[3]>0) { ret++; }
+
+    	return ret;
+    }
+
+    unsigned get_m_warp_id(void) { return m_warp_id; }
+    ////////////////////////////////////
+
+
 protected:
 
     unsigned m_uid;

@@ -89,7 +89,7 @@ void Scoreboard::reserveRegisters(const class warp_inst_t* inst)
                             "Reserved register - warp:%d, reg: %d\n",
                             inst->warp_id(),
                             inst->out[r] );
-            printf( "[ScoreBoard] Reserved register - warp:%d, reg: %d\n", inst->warp_id(), inst->out[r] );
+            //printf( "[ScoreBoard] Reserved register - warp:%d, reg: %d\n", inst->warp_id(), inst->out[r] );
         }
     }
 

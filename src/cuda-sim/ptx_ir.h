@@ -899,6 +899,38 @@ public:
       return m_operands[0];
    }
 
+   operand_info* dst_ptr()
+   {
+      assert( !m_operands.empty() );
+      return &(m_operands[0]);
+   }
+
+   operand_info* src1_ptr()
+   {
+      assert( m_operands.size() > 1 );
+      return &(m_operands[1]);
+   }
+
+   operand_info* src2_ptr()
+   {
+      assert( m_operands.size() > 2 );
+      return &(m_operands[2]);
+   }
+
+   operand_info* src3_ptr()
+   {
+      assert( m_operands.size() > 3 );
+      return &(m_operands[3]);
+   }
+
+   operand_info* src_ptr(int n)
+   {
+      assert( m_operands.size() > (n+1) );
+      return &(m_operands[n+1]);
+   }
+
+
+
    const operand_info &func_addr() const
    {
       assert( !m_operands.empty() );

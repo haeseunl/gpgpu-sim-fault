@@ -1294,7 +1294,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       delete pJ;
       pI = pI_saved;
 
-      if (fault_injection_phase==1) {
+      if (fault_injection_phase!=2) {
           ////////////////////////////////////////////////////////
           // store info
           inst.set_inst_ptr(pI_for_warp);

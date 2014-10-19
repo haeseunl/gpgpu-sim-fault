@@ -78,18 +78,62 @@ class reg_info
 public:
 	std::string name;
 	unsigned int reg_id;
+	int cnt;
+	bool check_flag;
 
 	std::vector<unsigned long long> start;
 	std::vector<unsigned long long> end;
 
+	bool is_same(std::string name_in, int id){
+		if ((name.compare(name_in)==0) && (reg_id==id)) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
+	bool get_flag(void) { return check_flag; }
+	void set_flag(bool flag) { check_flag = flag; }
+	int get_cnt(void) { return cnt; }
+	void inc_cnt(void) { cnt++; }
+	void set_cnt(int n) { cnt = n; }
 };
 
 class warp_vuln_info
 {
 public:
 	std::vector<reg_info*> vuln_regs;
+	std::string asm_string;
+	int hd_warp_id;
 	dim3 cta_id;
-	dim3 thd_id;
+	dim3 tid;
+
+	void set_cta_id(dim3 cta) { cta_id.x = cta.x; cta_id.y = cta.y; cta_id.z = cta.z; }
+	void set_thd_id(dim3 tid_in) { tid.x = tid_in.x; tid.y = tid_in.y; tid.z = tid_in.z; }
+	dim3 get_cta_id(void) { return cta_id; }
+	dim3 get_thd_id(void) { return tid; }
+
+	void set_global_warp_id(dim3 cta, dim3 tid_in) {
+		;
+	}
+
+	bool is_same_warp(dim3 cta, dim3 thd) {
+		return ((cta_id.x==cta.x) && (cta_id.y==cta.y) && (cta_id.z==cta.z)
+				&& (tid.x==thd.x) && (tid.y==thd.y) && (tid.z==thd.z));
+	}
+
+	reg_info* get_reg_info(std::string name, int reg_id) {
+		reg_info* ret = NULL;
+
+		for (unsigned int i=0; i<vuln_regs.size(); i++) {
+			if (vuln_regs[i]->is_same(name, reg_id)) {
+				ret = vuln_regs[i];
+			}
+		}
+
+		return ret;
+	}
 };
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -989,6 +1033,7 @@ public:
     virtual void issue( register_set& source_reg ) { source_reg.move_out_to(m_dispatch_reg); occupied.set(m_dispatch_reg->latency);}
     virtual void cycle() = 0;
     virtual void check(std::vector<warp_inst_t*>& candidate, int m_fu_n, int faulty_comp) = 0;
+    virtual warp_inst_t* GetLastStage(void) = 0;
     virtual void active_lanes_in_pipeline() = 0;
     virtual unsigned get_active_lanes_in_pipeline() = 0;
 
@@ -1022,6 +1067,7 @@ public:
     //modifiers
     virtual void cycle();
     virtual void check(std::vector<warp_inst_t*>& candidate, int m_fu_n, int faulty_comp);
+    virtual warp_inst_t* GetLastStage(void);
     virtual void issue( register_set& source_reg );
     virtual unsigned get_active_lanes_in_pipeline()
     {
@@ -1865,8 +1911,19 @@ public:
     // run on this shader, where the warp_id is the static warp slot.
     unsigned m_dynamic_warp_id;
 
+    // TODO:
     /////////////////////////////////////////////////////////////
-    std::vector<warp_vuln_info*> warp_vuln_period;
+    std::vector<warp_vuln_info*> vuln_warp_info;
+    warp_vuln_info* get_exist_warp(warp_inst_t* inst);
+    warp_vuln_info* get_warp_data(int wid) {
+    	warp_vuln_info* ret = NULL;
+    	for (int i=0; i<this->vuln_warp_info.size(); i++) {
+    		if (this->vuln_warp_info[i]->hd_warp_id==wid) {
+    			ret = this->vuln_warp_info[i];
+    		}
+    	}
+    	return ret;
+    }
     /////////////////////////////////////////////////////////////
 
 };
