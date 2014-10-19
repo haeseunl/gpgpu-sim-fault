@@ -725,13 +725,14 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
     			dst_info = new reg_info;
     			dst_info->name = reg_name;
     			dst_info->reg_id = reg_id;
-    			dst_info->set_flag(true);
+    			dst_info->set_avail_flag(false);
     			dst_info->set_cnt(0);
     			dst_info->start.push_back(0);
     			dst_info->end.push_back(0);
     			vuln_warp->vuln_regs.push_back(dst_info);
     		}
     		else {
+    			dst_info->set_avail_flag(false);
     			dst_info->inc_cnt();
     			dst_info->start.push_back(0);
     			dst_info->end.push_back(0);
@@ -913,10 +914,10 @@ void scheduler_unit::cycle()
 
     	if (warp != NULL) {
     		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
-    	    	if (!m_scoreboard->checkCollisionReg(warp->hd_warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_flag()==true) {
+    	    	if (!m_scoreboard->checkCollisionReg(warp->hd_warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag()==false) {
     	    		printf( "[check] Reg [%s] (id: %d) is ready to use at (clk: %u | ref cnt: %d)\n"
     	    				, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, tot_clk, reg_cnt);
-    	    		warp->vuln_regs[i]->set_flag(false);
+    	    		warp->vuln_regs[i]->set_avail_flag(true);
     	    		reg_cnt = warp->vuln_regs[i]->get_cnt();
     	    		warp->vuln_regs[i]->start[reg_cnt] = tot_clk;
     	    		warp->vuln_regs[i]->end[reg_cnt] = tot_clk;
@@ -1320,7 +1321,33 @@ void shader_core_ctx::execute()
         	warp_inst_t* last_stage = m_fu[n]->GetLastStage();
 
         	if (last_stage!=NULL) {
-        		printf("[Last stage] insn: %s\n", last_stage->get_asm_str().c_str());
+        		printf("[Last stage] insn: %s (clk: %u)\n", last_stage->get_asm_str().c_str(), tot_clk);
+
+        		warp_vuln_info* warp_info = this->get_exist_warp(last_stage);
+        		reg_info* vuln_reg;
+        		assert (warp_info!=NULL);
+        		std::string reg_name;
+        		int reg_id;
+        		int reg_ref_num;
+
+        	    // Get src operand info
+        	    if (last_stage->get_num_operands()>1) {
+        	    	printf("[%s] get_num_operands(): %d\n", last_stage->get_asm_str().c_str(), last_stage->get_num_operands());
+
+        	    	for (int i=0; i<last_stage->get_in_operand_num(); i++) {
+        	    		reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
+        	    		reg_id = last_stage->get_inst_ptr()->src_ptr(i)->reg_num();
+        	    		vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
+        	    		assert (vuln_reg!=NULL);
+        	    		assert (vuln_reg->get_avail_flag());
+        	    		reg_ref_num = vuln_reg->get_cnt();
+        	    		vuln_reg->end[reg_ref_num] = tot_clk;
+
+        	    		printf("[%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+        	    				, i, i, reg_name.c_str(), i, reg_id, reg_ref_num, vuln_reg->start[reg_ref_num], vuln_reg->end[reg_ref_num], last_stage->active_count());
+
+        	    	}
+        	    }
         	}
         	m_fu[n]->cycle();
         }
@@ -3498,6 +3525,21 @@ void simt_core_cluster::core_cycle()
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////
+void simt_core_cluster::print_vuln_result(void)
+{
+	printf("SIMTCluster (ID: %d)\n", this->m_cluster_id);
+    for( std::list<unsigned>::iterator it = m_core_sim_order.begin(); it != m_core_sim_order.end(); ++it ) {
+        m_core[*it]->print_vuln_result();
+    }
+}
+/////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
 void simt_core_cluster::reinit()
 {
     for( unsigned i=0; i < m_config->n_simt_cores_per_cluster; i++ ) 
@@ -3779,4 +3821,15 @@ warp_vuln_info* shader_core_ctx::get_exist_warp(warp_inst_t* inst)
 	return ret;
 }
 
+void shader_core_ctx::print_vuln_result(void)
+{
+	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
+		printf("----------------------------------------------\n");
+		printf(" [%d]th warp", i);
+		for (unsigned int r=0; r<this->vuln_warp_info[i]->vuln_regs.size(); r++) {
+			printf("Reg name: %s | reg id: %d\n", this->vuln_warp_info[i]->vuln_regs[r]->name.c_str(), this->vuln_warp_info[i]->vuln_regs[r]->reg_id);
+		}
 
+		printf("----------------------------------------------\n");
+	}
+}

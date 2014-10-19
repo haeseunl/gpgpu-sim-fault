@@ -1460,6 +1460,7 @@ simt_core_cluster * gpgpu_sim::getSIMTCluster()
    return *m_cluster;
 }
 
+
 //////////////////////////////////////////////////////////////////////
 void create_fault_list(unsigned long long base_clk) {
 	std::vector<unsigned long long> offset_clk;

@@ -1082,6 +1082,7 @@ public:
     }
 
     unsigned get_m_warp_id(void) { return m_warp_id; }
+    unsigned int get_scalar_thread_size(void) { return m_per_scalar_thread.size(); }
     ////////////////////////////////////
 
 

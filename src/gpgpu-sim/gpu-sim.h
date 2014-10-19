@@ -431,6 +431,8 @@ public:
     */
     simt_core_cluster * getSIMTCluster();
 
+    simt_core_cluster** getFullSIMTCluster() { return m_cluster; }
+
 
 private:
    // clocks

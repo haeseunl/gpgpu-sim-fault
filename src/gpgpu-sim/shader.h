@@ -79,7 +79,7 @@ public:
 	std::string name;
 	unsigned int reg_id;
 	int cnt;
-	bool check_flag;
+	bool available_flag;
 
 	std::vector<unsigned long long> start;
 	std::vector<unsigned long long> end;
@@ -93,8 +93,8 @@ public:
 		}
 	}
 
-	bool get_flag(void) { return check_flag; }
-	void set_flag(bool flag) { check_flag = flag; }
+	bool get_avail_flag(void) { return available_flag; }
+	void set_avail_flag(bool flag) { available_flag = flag; }
 	int get_cnt(void) { return cnt; }
 	void inc_cnt(void) { cnt++; }
 	void set_cnt(int n) { cnt = n; }
@@ -106,6 +106,7 @@ public:
 	std::vector<reg_info*> vuln_regs;
 	std::string asm_string;
 	int hd_warp_id;
+	int warp_thread_cnt;
 	dim3 cta_id;
 	dim3 tid;
 
@@ -1815,7 +1816,7 @@ public:
 	 void inc_simt_to_mem(unsigned n_flits){ m_stats->n_simt_to_mem[m_sid] += n_flits; }
 	 bool check_if_non_released_reduction_barrier(warp_inst_t &inst);
 
-	private:
+private:
 	 unsigned inactive_lanes_accesses_sfu(unsigned active_count,double latency){
       return  ( ((32-active_count)>>1)*latency) + ( ((32-active_count)>>3)*latency) + ( ((32-active_count)>>3)*latency);
 	 }
@@ -1924,6 +1925,8 @@ public:
     	}
     	return ret;
     }
+public:
+    void print_vuln_result(void);
     /////////////////////////////////////////////////////////////
 
 };
@@ -1972,6 +1975,9 @@ public:
     void get_L1T_sub_stats(struct cache_sub_stats &css) const;
 
     void get_icnt_stats(long &n_simt_to_mem, long &n_mem_to_simt) const;
+
+    unsigned int get_m_core_sim_order_size(void) { return m_core_sim_order.size(); }
+    void print_vuln_result(void);
 
 private:
     unsigned m_cluster_id;
