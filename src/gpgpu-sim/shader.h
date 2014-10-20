@@ -93,6 +93,15 @@ public:
 		}
 	}
 
+	bool is_same(std::string name_in){
+		if (name.compare(name_in)==0) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
 	bool get_avail_flag(void) { return available_flag; }
 	void set_avail_flag(bool flag) { available_flag = flag; }
 	int get_cnt(void) { return cnt; }
@@ -106,7 +115,7 @@ public:
 	std::vector<reg_info*> vuln_regs;
 	std::string asm_string;
 	int hd_warp_id;
-	int warp_thread_cnt;
+	unsigned int warp_thread_cnt;
 	dim3 cta_id;
 	dim3 tid;
 
@@ -132,9 +141,20 @@ public:
 				ret = vuln_regs[i];
 			}
 		}
-
 		return ret;
 	}
+
+	reg_info* get_reg_info(std::string name) {
+		reg_info* ret = NULL;
+
+		for (unsigned int i=0; i<vuln_regs.size(); i++) {
+			if (vuln_regs[i]->is_same(name)) {
+				ret = vuln_regs[i];
+			}
+		}
+		return ret;
+	}
+
 };
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1168,6 +1188,8 @@ public:
     // modifiers
     virtual void issue( register_set &inst );
     virtual void cycle();
+
+    virtual warp_inst_t* GetLastStage(void);
      
     void fill( mem_fetch *mf );
     void flush();
