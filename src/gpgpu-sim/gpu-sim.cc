@@ -111,6 +111,8 @@ std::ifstream fault_injection_read;
 FILE* fault_injection_write=NULL;
 std::vector<fault*> fault_injection_list;
 std::vector<fault*> effective_fault_list;
+
+unsigned long long gpu_tot_vuln_period = 0;
 ///////////////////////////////////////////////////////////
 
 #include "mem_latency_stat.h"

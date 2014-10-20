@@ -148,6 +148,11 @@ void *gpgpu_sim_thread_concurrent(void*)
 				for (unsigned i=0;i<g_the_gpu->getShaderCoreConfig()->n_simt_clusters;i++) {
 					g_the_gpu->getFullSIMTCluster()[i]->print_vuln_result();
 				}
+
+				printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+				printf("[Vuln-analysis] gpu_tot_vuln_period: %llu\n", gpu_tot_vuln_period);
+				printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n");
+
 				/////////////////////////////////////////////////////////////////////
 				break;
 			}

@@ -75,6 +75,8 @@ extern FILE* fault_injection_write;
 extern std::vector<fault*> fault_injection_list;
 extern std::vector<fault*> effective_fault_list;
 extern void read_effective_fault_list(void);
+
+extern unsigned long long gpu_tot_vuln_period;
 ///////////////////////////////////////////////////////////
 
 

@@ -898,8 +898,8 @@ void scheduler_unit::cycle()
     	if (warp != NULL) {
     		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
     	    	if (!m_scoreboard->checkCollisionReg(warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag()==false) {
-    	    		printf( "[check] Reg [%s] (id: %d) is ready to use at (clk: %u | ref cnt: %d)\n"
-    	    				, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, tot_clk, reg_cnt);
+    	    		printf( "[SM:%2d - ScoreBoard] Reg [%s] (id: %d) is ready to use at (clk: %u | ref cnt: %d)\n"
+    	    				, this->m_shader->get_sid(), warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, tot_clk, reg_cnt);
     	    		warp->vuln_regs[i]->set_avail_flag(true);
     	    		reg_cnt = warp->vuln_regs[i]->get_cnt();
     	    		warp->vuln_regs[i]->start[reg_cnt] = tot_clk;
@@ -1309,7 +1309,7 @@ void shader_core_ctx::execute()
         	warp_inst_t* last_stage = m_fu[n]->GetLastStage();
         	if (last_stage!=NULL) {
         		tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
-        		printf("[Last stage] insn: %s (clk: %u | in: %d)\n", last_stage->get_asm_str().c_str(), tot_clk, last_stage->get_in_operand_num());
+        		printf("[SM:%2d - Last stage] insn: %s (clk: %u | in: %d)\n", this->get_sid(), last_stage->get_asm_str().c_str(), tot_clk, last_stage->get_in_operand_num());
 
         		warp_vuln_info* warp_info = this->get_exist_warp(last_stage);
         		reg_info* vuln_reg;
@@ -1323,12 +1323,12 @@ void shader_core_ctx::execute()
         	    if (in_operand_num>=1 || last_stage->get_inst_ptr()->op == LOAD_OP) {
        	    	//if (last_stage->get_num_operands()>1) {
         	    	if (last_stage->get_inst_ptr()->op == LOAD_OP) {
-//        	    		in_operand_num++;
-//        	    		printf("[%s] get_num_operands(): %d (LOAD_OP)\n", last_stage->get_asm_str().c_str(), in_operand_num);
+        	    		in_operand_num++;
+        	    		//printf("[%s] get_num_operands(): %d (LOAD_OP)\n", last_stage->get_asm_str().c_str(), in_operand_num);
         	    	}
-        	    	else {
-        	    		printf("[%s] get_num_operands(): %d\n", last_stage->get_asm_str().c_str(), in_operand_num);
-        	    	}
+//        	    	else {
+//        	    		printf("[%s] get_num_operands(): %d\n", last_stage->get_asm_str().c_str(), in_operand_num);
+//        	    	}
 
         	    	for (int i=0; i<in_operand_num; i++) {
         	    		reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
@@ -1355,8 +1355,8 @@ void shader_core_ctx::execute()
             	    		}
             	    		vuln_reg->end[reg_ref_num] = tot_clk;
 
-            	    		printf("[%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
-            	    				, i, i, reg_name.c_str(), i, reg_id, reg_ref_num, vuln_reg->start[reg_ref_num], vuln_reg->end[reg_ref_num], last_stage->active_count());
+            	    		printf("[SM:%2d][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+            	    				, this->get_sid(), i, i, reg_name.c_str(), i, reg_id, reg_ref_num, vuln_reg->start[reg_ref_num], vuln_reg->end[reg_ref_num], last_stage->active_count());
         	    		}
         	    	}
         	    }
@@ -2137,24 +2137,26 @@ void ldst_unit::issue( register_set &reg_set )
 
 warp_inst_t* ldst_unit::GetLastStage()
 {
-//	//printf("[Vulnerability] ldst_unit::GetLastStage()\n");
-//	warp_inst_t* ret = NULL;
-//    if( !m_dispatch_reg->empty() ){
-//    	//printf("[Vulnerability::ldst_unit::GetLastStage()] m_dispatch_reg is not empty..\n");
-//    	ret = m_dispatch_reg;
-//    }
-//    return ret;
+	//printf("[Vulnerability] ldst_unit::GetLastStage()\n");
+	warp_inst_t* ret = NULL;
+    if( !m_dispatch_reg->empty() ){
+    	//printf("[Vulnerability::ldst_unit::GetLastStage()] m_dispatch_reg is not empty..\n");
+    	ret = m_dispatch_reg;
+    }
+    return ret;
 }
 
 
 
 void ldst_unit::cycle()
 {
+#ifdef LDST_CYCLE_DEBUG
 	printf("=======================================================================\n");
-	printf(" Current clk: %u\n", gpu_sim_cycle+gpu_tot_sim_cycle);
+	printf(" Current clk: %u (SM: %d)\n", gpu_sim_cycle+gpu_tot_sim_cycle, this->m_core->get_sid());
 	printf("-----------------------------------------------------------------------\n");
 	this->print(stdout);
 	printf("=======================================================================\n\n");
+#endif
 
    writeback();
    m_operand_collector->step();
@@ -3893,6 +3895,7 @@ void shader_core_ctx::print_vuln_result(void)
 		printf("----------------------------------------------\n");
 	}
 
+	gpu_tot_vuln_period += tot_vuln_period;
 	printf("[Vulnerability] Total vulnerable period: %u\n", tot_vuln_period);
 
 }
