@@ -77,10 +77,11 @@ class reg_info
 {
 public:
 	std::string name;
+	std::string asm_string;
 	unsigned int reg_id;
-	int cnt;
-	bool available_flag;
+	int ref_cnt;
 
+	std::vector<bool> available_flag;
 	std::vector<unsigned long long> start;
 	std::vector<unsigned long long> end;
 
@@ -102,18 +103,19 @@ public:
 		}
 	}
 
-	bool get_avail_flag(void) { return available_flag; }
-	void set_avail_flag(bool flag) { available_flag = flag; }
-	int get_cnt(void) { return cnt; }
-	void inc_cnt(void) { cnt++; }
-	void set_cnt(int n) { cnt = n; }
+	void add_avail_flag(void) { available_flag.push_back(false); }
+	bool get_avail_flag(int i) { assert(i<available_flag.size()); return available_flag[i]; }
+	void set_avail_flag(int i, bool flag) { assert(i<available_flag.size()); available_flag[i] = flag; }
+	int get_cnt(void) { return available_flag.size()-1; }
+	void inc_ref_cnt(void) { ref_cnt++; }
+	void set_ref_cnt(int n) { ref_cnt = n; }
+	int get_ref_cnt(void) { return ref_cnt; }
 };
 
 class warp_vuln_info
 {
 public:
 	std::vector<reg_info*> vuln_regs;
-	std::string asm_string;
 	int hd_warp_id;
 	unsigned int warp_thread_cnt;
 	dim3 cta_id;

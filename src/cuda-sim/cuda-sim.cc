@@ -1275,8 +1275,34 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       }
    }
    
+
+   if (fault_injection_phase!=2) {
+       ////////////////////////////////////////////////////////
+       // store info
+       inst.set_inst_ptr(pI_for_warp);
+       inst.set_thd_info(this);
+       inst.set_m_hw_cta_id(this->get_hw_ctaid());
+       inst.set_m_hw_sm_id(this->get_hw_sid());
+       inst.set_m_hw_thd_id(this->get_hw_tid());
+       inst.set_m_hw_warp_id(this->get_hw_wid());
+
+       inst.set_dim3_cta_id(this->get_ctaid());
+       inst.set_dim3_thd_id(this->get_tid());
+       ////////////////////////////////////////////////////////
+   }
+
+   if (fault_injection_phase==2 && effective_fault_list.size()>0) {
+ 	  if (apply_fault) {
+ 		  effective_fault_list.erase(effective_fault_list.begin());
+ 		  this->set_fault_flag(0);
+ 		  printf("[Fault injection] Erase applied fault...\n\n");
+ 	  }
+   }
+
+
    if( skip ) {
       inst.set_not_active(lane_id);
+      printf("[DEBUG] This instrucion is skipped..\n\n");
    } else {
       const ptx_instruction *pI_saved = pI;
       ptx_instruction *pJ = NULL;
@@ -1294,31 +1320,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       delete pJ;
       pI = pI_saved;
 
-      if (fault_injection_phase!=2) {
-          ////////////////////////////////////////////////////////
-          // store info
-          inst.set_inst_ptr(pI_for_warp);
-          inst.set_thd_info(this);
-          inst.set_m_hw_cta_id(this->get_hw_ctaid());
-          inst.set_m_hw_sm_id(this->get_hw_sid());
-          inst.set_m_hw_thd_id(this->get_hw_tid());
-          inst.set_m_hw_warp_id(this->get_hw_wid());
 
-          inst.set_dim3_cta_id(this->get_ctaid());
-          inst.set_dim3_thd_id(this->get_tid());
-          ////////////////////////////////////////////////////////
-      }
-
-      if (fault_injection_phase==2 && effective_fault_list.size()>0) {
-    	  if (apply_fault) {
-    		  effective_fault_list.erase(effective_fault_list.begin());
-    		  this->set_fault_flag(0);
-    		  printf("[Fault injection] Erase applied fault...\n\n");
-    	  }
-      }
-
-
-      
       // Run exit instruction if exit option included
       if(pI->is_exit())
          exit_impl(pI,this);
