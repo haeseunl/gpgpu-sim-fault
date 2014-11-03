@@ -755,8 +755,8 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
         			dst_info->end.push_back(0);
         			vuln_warp->vuln_regs.push_back(dst_info);
 
-        	    	printf( "[SM:%2d - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
-        	    			, this->get_sid(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
+        	    	printf( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
+        	    			, this->get_sid(), inst.get_m_hw_warp_id(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
 
 
         		}
@@ -766,8 +766,8 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
         			dst_info->start.push_back(0);
         			dst_info->end.push_back(0);
 
-        	    	printf( "[SM:%2d - func_exec_inst] inst: [%s] add new dest reg [%s] (id: %d) (clk: %u)\n"
-        	    			, this->get_sid(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
+        	    	printf( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] add new dest reg [%s] (id: %d) (clk: %u)\n"
+        	    			, this->get_sid(), inst.get_m_hw_warp_id(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
         		}
     		}
     	}
@@ -957,8 +957,8 @@ void scheduler_unit::cycle()
     		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
     			ref_cnt = warp->vuln_regs[i]->get_ref_cnt();
     	    	if (!m_scoreboard->checkCollisionReg(warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag(ref_cnt)==false) {
-    	    		printf( "[SM:%2d - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
-    	    				, this->m_shader->get_sid(), warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, warp->vuln_regs[i]->asm_string.c_str(), tot_clk, ref_cnt);
+    	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
+    	    				, this->m_shader->get_sid(), warp->hd_warp_id, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, warp->vuln_regs[i]->asm_string.c_str(), tot_clk, ref_cnt);
     	    		warp->vuln_regs[i]->set_avail_flag(ref_cnt, true);
     	    		warp->vuln_regs[i]->start[ref_cnt] = tot_clk-1;
     	    		warp->vuln_regs[i]->end[ref_cnt] = tot_clk-1;
@@ -1383,17 +1383,18 @@ void shader_core_ctx::execute()
        	    	//if (last_stage->get_num_operands()>1) {
         	    	if (last_stage->get_inst_ptr()->has_memory_read()) {
         	    		in_operand_num++;
-        	    		printf("[SM:%2d - Last stage] insn: [%s] (LOAD_OP) (clk: %u | in_operand_num: %d) \n"
-        	    				, this->get_sid(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
+        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (LOAD_OP) (clk: %u | in_operand_num: %d) \n"
+        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
         	    	}
         	    	else {
         	    		in_operand_num = MAX(last_stage->get_in_operand_num(), last_stage->get_num_operands());
-        	    		printf("[SM:%2d - Last stage] insn: [%s] (clk: %u | in_operand_num: %d)\n"
-        	    				, this->get_sid(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
+        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (clk: %u | in_operand_num: %d)\n"
+        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
         	    	}
 
         	    	for (int i=0; i<in_operand_num; i++) {
-        	    		printf("[SM:%2d - Last stage] insn: [%s] is_reg: %d (reg_ref_cnt: %d)\n", this->get_sid(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
+        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d (reg_ref_cnt: %d)\n"
+        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
         	    		vuln_reg = NULL;
         	    		if (last_stage->get_inst_ptr()->src_ptr(i)->is_reg()) {
         	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
@@ -1419,8 +1420,8 @@ void shader_core_ctx::execute()
             	    		}
             	    		vuln_reg->end[reg_ref_cnt] = tot_clk;
 
-            	    		printf("[SM:%2d][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
-            	    				, this->get_sid(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], last_stage->active_count());
+            	    		printf("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+            	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], last_stage->active_count());
 
 //            	    		// This handles the recursive case
 //            	    		if (vuln_reg->get_cnt()>reg_ref_cnt && last_stage->out[0] == vuln_reg->reg_id ) {
@@ -1440,8 +1441,8 @@ void shader_core_ctx::execute()
         	    // After handle all the other case, check weather this is a next time.
         	    if (!last_stage->get_inst_ptr()->has_memory_write() && last_stage->get_num_operands()>0) {
        	    	//if (last_stage->get_inst_ptr()->dst_ptr()->is_reg() && last_stage->get_inst_ptr()->has_memory_write()==false) {
-	    			printf("[SM:%2d - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
-	    					, this->get_sid(), last_stage->get_asm_str().c_str(), tot_clk);
+	    			printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
+	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk);
 
         	    	if (last_stage->get_inst_ptr()->dst_ptr()->is_reg()) {
                 	    reg_name = last_stage->get_inst_ptr()->dst_ptr()->name();
@@ -1453,8 +1454,8 @@ void shader_core_ctx::execute()
                 	    reg_ref_cnt = dst_vuln_reg->get_ref_cnt();
                 	    if (dst_vuln_reg->get_cnt()>reg_ref_cnt ) {
                 	    	dst_vuln_reg->inc_ref_cnt();
-        	    			printf("[SM:%2d - Last stage] insn: [%s] Dest Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
-        	    					, this->get_sid(), last_stage->get_asm_str().c_str(), dst_vuln_reg->name.c_str(), dst_vuln_reg->reg_id, dst_vuln_reg->get_ref_cnt(), tot_clk);
+        	    			printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
+        	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), dst_vuln_reg->name.c_str(), dst_vuln_reg->reg_id, dst_vuln_reg->get_ref_cnt(), tot_clk);
 
         	    			dst_vuln_reg->start[reg_ref_cnt+1] = tot_clk;
         	    			dst_vuln_reg->end[reg_ref_cnt+1] = tot_clk;
@@ -2252,6 +2253,7 @@ warp_inst_t* ldst_unit::GetLastStage()
 }
 
 
+#define LDST_CYCLE_DEBUG
 
 void ldst_unit::cycle()
 {

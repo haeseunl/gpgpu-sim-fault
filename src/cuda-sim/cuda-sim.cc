@@ -1302,7 +1302,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
 
    if( skip ) {
       inst.set_not_active(lane_id);
-      printf("[DEBUG] This instrucion is skipped..\n\n");
+      //printf("[DEBUG] This instrucion is skipped..\n\n");
    } else {
       const ptx_instruction *pI_saved = pI;
       ptx_instruction *pJ = NULL;
