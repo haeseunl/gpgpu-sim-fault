@@ -983,6 +983,25 @@ void scheduler_unit::cycle()
         unsigned checked=0;
         unsigned issued=0;
         unsigned max_issue = m_shader->m_config->gpgpu_max_insn_issue_per_warp;
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        if (!((checked < max_issue) && (checked <= issued) && (issued < max_issue))) {
+    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] # of instruction exceeds the limit per warp. Cannot issue the instruction. (checked: %d | issued: %d | max_issue: %d | clk: %u | ref cnt: %d)\n"
+    				, this->m_shader->get_sid(), warp_id, checked, issued, max_issue, tot_clk, ref_cnt);
+        }
+
+        if (warp(warp_id).waiting()) {
+    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] This warp is waiting. Cannot issue the instruction. (clk: %u | ref cnt: %d)\n"
+    				, this->m_shader->get_sid(), warp_id, tot_clk, ref_cnt);
+        }
+
+        if (warp(warp_id).ibuffer_empty()) {
+    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] Instruction buffer is empty. Cannot issue the instruction. (clk: %u | ref cnt: %d)\n"
+    				, this->m_shader->get_sid(), warp_id, tot_clk, ref_cnt);
+        }
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+
         while( !warp(warp_id).waiting() && !warp(warp_id).ibuffer_empty() && (checked < max_issue) && (checked <= issued) && (issued < max_issue) ) {
             const warp_inst_t *pI = warp(warp_id).ibuffer_next_inst();
             bool valid = warp(warp_id).ibuffer_next_valid();
@@ -1019,9 +1038,23 @@ void scheduler_unit::cycle()
                                 issued_inst=true;
                                 warp_inst_issued = true;
                             }
+                            else {
+                	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] LD/STR unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
+                	    				, this->m_shader->get_sid(), warp_id, pI->get_asm_str().c_str(), tot_clk, ref_cnt);
+                            }
                         } else {
                             bool sp_pipe_avail = m_sp_out->has_free();
                             bool sfu_pipe_avail = m_sfu_out->has_free();
+                            if (!sp_pipe_avail) {
+                	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] SP unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
+                	    				, this->m_shader->get_sid(), warp_id, pI->get_asm_str().c_str(), tot_clk, ref_cnt);
+                            }
+
+                            if (!sfu_pipe_avail) {
+                	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] SFU unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
+                	    				, this->m_shader->get_sid(), warp_id, pI->get_asm_str().c_str(), tot_clk, ref_cnt);
+                            }
+
                             if( sp_pipe_avail && (pI->op != SFU_OP) ) {
                                 // always prefer SP pipe for operations that can use both SP and SFU pipelines
                                 m_shader->issue_warp(*m_sp_out,pI,active_mask,warp_id);
@@ -1393,8 +1426,8 @@ void shader_core_ctx::execute()
         	    	}
 
         	    	for (int i=0; i<in_operand_num; i++) {
-        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d (reg_ref_cnt: %d)\n"
-        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
+//        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
+//        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
         	    		vuln_reg = NULL;
         	    		if (last_stage->get_inst_ptr()->src_ptr(i)->is_reg()) {
         	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
@@ -2253,7 +2286,7 @@ warp_inst_t* ldst_unit::GetLastStage()
 }
 
 
-#define LDST_CYCLE_DEBUG
+#define LDST_CYCLE_DEBUG_
 
 void ldst_unit::cycle()
 {
@@ -2939,6 +2972,9 @@ void shader_core_ctx::cycle()
     issue();
     decode();
     fetch();
+
+    //this->display_pipeline(stdout, 0, 8);
+
 }
 
 // Flushes all content of the cache to memory
