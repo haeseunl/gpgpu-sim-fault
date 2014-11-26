@@ -700,7 +700,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 	//inst.get_thd_info()
     // get instruction info
 
-    warp_vuln_info* vuln_warp = this->get_exist_warp(&inst);
+    warp_vuln_info* vuln_warp = this->get_exist_warp(inst.get_m_hw_warp_id());
 
     if (vuln_warp == NULL) {
     	vuln_warp = new warp_vuln_info;
@@ -1401,7 +1401,7 @@ void shader_core_ctx::execute()
         	if (last_stage!=NULL) {
         		tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 
-        		warp_vuln_info* warp_info = this->get_exist_warp(last_stage);
+        		warp_vuln_info* warp_info = this->get_exist_warp(last_stage->get_m_hw_warp_id());
         		reg_info* vuln_reg;
         		reg_info* dst_vuln_reg;
         		assert (warp_info!=NULL);
@@ -1426,14 +1426,18 @@ void shader_core_ctx::execute()
         	    	}
 
         	    	for (int i=0; i<in_operand_num; i++) {
-//        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
-//        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
+        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
+        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
         	    		vuln_reg = NULL;
         	    		if (last_stage->get_inst_ptr()->src_ptr(i)->is_reg()) {
         	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
             	    		reg_id = last_stage->get_inst_ptr()->src_ptr(i)->reg_num();
             	    		vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-            	    		assert (vuln_reg!=NULL);
+            	    		if ((vuln_reg==NULL)) {
+            	    			printf("[FATAL]th reg: %s (id: %d) not found\n", reg_name.c_str(), reg_id);
+            	    			assert(0) ;
+            	    		}
+
         	    		}
         	    		else if (last_stage->get_inst_ptr()->src_ptr(i)->is_memory_operand()) {
         	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
@@ -4002,6 +4006,17 @@ warp_vuln_info* shader_core_ctx::get_exist_warp(warp_inst_t* inst)
 	warp_vuln_info* ret = NULL;
 	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
 		if (this->vuln_warp_info[i]->is_same_warp(inst->get_dim3_cta_id(), inst->get_dim3_thd_id())) {
+			ret = this->vuln_warp_info[i];
+		}
+	}
+	return ret;
+}
+
+warp_vuln_info* shader_core_ctx::get_exist_warp(int hwid)
+{
+	warp_vuln_info* ret = NULL;
+	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
+		if (this->vuln_warp_info[i]->hd_warp_id == hwid) {
 			ret = this->vuln_warp_info[i];
 		}
 	}
