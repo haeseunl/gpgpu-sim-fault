@@ -141,12 +141,12 @@ public:
 
 		assert(vuln_regs.size()==info_cnt);
 
-		printf("[add_reg_info] warp has (%d) reg info (wid: %d)\n", vuln_regs.size(), this->hd_warp_id);
-
-		for (unsigned int i=0; i<vuln_regs.size(); i++) {
-			printf(" (wid: %d) name: %s | id: %d\n", this->hd_warp_id, vuln_regs[i]->name.c_str(), vuln_regs[i]->reg_id);
-
-		}
+//		printf("[add_reg_info] warp has (%d) reg info (wid: %d)\n", vuln_regs.size(), this->hd_warp_id);
+//
+//		for (unsigned int i=0; i<vuln_regs.size(); i++) {
+//			printf(" (wid: %d) name: %s | id: %d\n", this->hd_warp_id, vuln_regs[i]->name.c_str(), vuln_regs[i]->reg_id);
+//
+//		}
 	}
 
 	bool is_same_warp(dim3 cta, dim3 thd) {
@@ -157,10 +157,10 @@ public:
 	reg_info* get_reg_info(std::string name, int reg_id) {
 		reg_info* ret = NULL;
 
-		printf("has (%d) reg info (wid: %d)\n", vuln_regs.size(), this->hd_warp_id);
+
 
 		for (unsigned int i=0; i<vuln_regs.size(); i++) {
-			printf("name: %s | id: %d\n", vuln_regs[i]->name.c_str(), vuln_regs[i]->reg_id);
+
 			if (vuln_regs[i]->is_same(name, reg_id)) {
 				ret = vuln_regs[i];
 				break;

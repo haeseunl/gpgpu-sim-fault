@@ -1265,7 +1265,7 @@ void gpgpu_sim::cycle()
    if (clock_mask & CORE) {
       // L1 cache + shader core pipeline stages
       m_power_stats->pwr_mem_stat->core_cache_stats[CURRENT_STAT_IDX].clear();
-      printf("==============================================================================\n");
+      //printf("==============================================================================\n");
       for (unsigned i=0;i<m_shader_config->n_simt_clusters;i++) {
          if (m_cluster[i]->get_not_completed() || get_more_cta_left() ) {
                m_cluster[i]->core_cycle();
@@ -1275,7 +1275,7 @@ void gpgpu_sim::cycle()
          m_cluster[i]->get_icnt_stats(m_power_stats->pwr_mem_stat->n_simt_to_mem[CURRENT_STAT_IDX][i], m_power_stats->pwr_mem_stat->n_mem_to_simt[CURRENT_STAT_IDX][i]);
          m_cluster[i]->get_cache_stats(m_power_stats->pwr_mem_stat->core_cache_stats[CURRENT_STAT_IDX]);
       }
-      printf("==============================================================================\n\n");
+      //printf("==============================================================================\n\n");
       float temp=0;
       for (unsigned i=0;i<m_shader_config->num_shader();i++){
         temp+=m_shader_stats->m_pipeline_duty_cycle[i];

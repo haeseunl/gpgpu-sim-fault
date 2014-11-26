@@ -50,6 +50,12 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)<(b))?(a):(b))
     
+#define DEBUG_PRINTF_
+#ifdef DEBUG_PRINTF
+#define PRINT(...) printf(__VA_ARGS__)
+#else
+#define PRINT(...)
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 #include "../cuda-sim/ptx_ir.h"
@@ -684,7 +690,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 {
     unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 
-	printf( "[SM:%2d - func_exec_inst] inst: [%s] get_num_operands(): %d (clk: %u)\n"
+    PRINT( "[SM:%2d - func_exec_inst] inst: [%s] get_num_operands(): %d (clk: %u)\n"
 			, this->get_sid(), inst.get_asm_str().c_str(), inst.get_num_operands(), tot_clk);
 
 
@@ -711,9 +717,9 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
     	vuln_warp->warp_thread_cnt = inst.active_count();
 
 
-    	printf("Create new warp info (m_warp_size: %d)\n", m_warp_size);
+    	PRINT("Create new warp info (m_warp_size: %d)\n", m_warp_size);
     	this->vuln_warp_info.push_back(vuln_warp);
-    	inst.print_detail_info();
+    	//inst.print_detail_info();
     }
     else {
     	//printf("Use existing warp info\n");
@@ -755,7 +761,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
         			dst_info->end.push_back(0);
         			vuln_warp->vuln_regs.push_back(dst_info);
 
-        	    	printf( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
+        			PRINT( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
         	    			, this->get_sid(), inst.get_m_hw_warp_id(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
 
 
@@ -766,7 +772,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
         			dst_info->start.push_back(0);
         			dst_info->end.push_back(0);
 
-        	    	printf( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] add new dest reg [%s] (id: %d) (clk: %u)\n"
+        			PRINT( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] add new dest reg [%s] (id: %d) (clk: %u)\n"
         	    			, this->get_sid(), inst.get_m_hw_warp_id(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
         		}
     		}
@@ -786,7 +792,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 
 		vuln_reg->end[reg_ref_cnt] = tot_clk;
 
-    	printf( "[SM:%2d - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | ref: %d | start: %u | end: %u | active cnt: %u))\n"
+		PRINT( "[SM:%2d - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | ref: %d | start: %u | end: %u | active cnt: %u))\n"
     			, this->get_sid(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk, reg_ref_cnt
     			, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], inst.active_count());
 
@@ -957,7 +963,7 @@ void scheduler_unit::cycle()
     		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
     			ref_cnt = warp->vuln_regs[i]->get_ref_cnt();
     	    	if (!m_scoreboard->checkCollisionReg(warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag(ref_cnt)==false) {
-    	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
+    	    		PRINT( "[SM:%2d(wid: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
     	    				, this->m_shader->get_sid(), warp->hd_warp_id, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, warp->vuln_regs[i]->asm_string.c_str(), tot_clk, ref_cnt);
     	    		warp->vuln_regs[i]->set_avail_flag(ref_cnt, true);
     	    		warp->vuln_regs[i]->start[ref_cnt] = tot_clk-1;
@@ -984,20 +990,20 @@ void scheduler_unit::cycle()
         unsigned issued=0;
         unsigned max_issue = m_shader->m_config->gpgpu_max_insn_issue_per_warp;
         ////////////////////////////////////////////////////////////////////////////////////////////////////
-        if (!((checked < max_issue) && (checked <= issued) && (issued < max_issue))) {
-    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] # of instruction exceeds the limit per warp. Cannot issue the instruction. (checked: %d | issued: %d | max_issue: %d | clk: %u | ref cnt: %d)\n"
-    				, this->m_shader->get_sid(), warp_id, checked, issued, max_issue, tot_clk, ref_cnt);
-        }
-
-        if (warp(warp_id).waiting()) {
-    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] This warp is waiting. Cannot issue the instruction. (clk: %u | ref cnt: %d)\n"
-    				, this->m_shader->get_sid(), warp_id, tot_clk, ref_cnt);
-        }
-
-        if (warp(warp_id).ibuffer_empty()) {
-    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] Instruction buffer is empty. Cannot issue the instruction. (clk: %u | ref cnt: %d)\n"
-    				, this->m_shader->get_sid(), warp_id, tot_clk, ref_cnt);
-        }
+//        if (!((checked < max_issue) && (checked <= issued) && (issued < max_issue))) {
+//    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] # of instruction exceeds the limit per warp. Cannot issue the instruction. (checked: %d | issued: %d | max_issue: %d | clk: %u | ref cnt: %d)\n"
+//    				, this->m_shader->get_sid(), warp_id, checked, issued, max_issue, tot_clk, ref_cnt);
+//        }
+//
+//        if (warp(warp_id).waiting()) {
+//    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] This warp is waiting. Cannot issue the instruction. (clk: %u | ref cnt: %d)\n"
+//    				, this->m_shader->get_sid(), warp_id, tot_clk, ref_cnt);
+//        }
+//
+//        if (warp(warp_id).ibuffer_empty()) {
+//    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] Instruction buffer is empty. Cannot issue the instruction. (clk: %u | ref cnt: %d)\n"
+//    				, this->m_shader->get_sid(), warp_id, tot_clk, ref_cnt);
+//        }
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1039,19 +1045,19 @@ void scheduler_unit::cycle()
                                 warp_inst_issued = true;
                             }
                             else {
-                	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] LD/STR unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
+                            	PRINT( "[SM:%2d(wid: %2d) - ScoreBoard] LD/STR unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
                 	    				, this->m_shader->get_sid(), warp_id, pI->get_asm_str().c_str(), tot_clk, ref_cnt);
                             }
                         } else {
                             bool sp_pipe_avail = m_sp_out->has_free();
                             bool sfu_pipe_avail = m_sfu_out->has_free();
                             if (!sp_pipe_avail) {
-                	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] SP unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
+                            	PRINT( "[SM:%2d(wid: %2d) - ScoreBoard] SP unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
                 	    				, this->m_shader->get_sid(), warp_id, pI->get_asm_str().c_str(), tot_clk, ref_cnt);
                             }
 
                             if (!sfu_pipe_avail) {
-                	    		printf( "[SM:%2d(wid: %2d) - ScoreBoard] SFU unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
+                            	PRINT( "[SM:%2d(wid: %2d) - ScoreBoard] SFU unit is full. Cannot issue the inst [%s] (clk: %u | ref cnt: %d)\n"
                 	    				, this->m_shader->get_sid(), warp_id, pI->get_asm_str().c_str(), tot_clk, ref_cnt);
                             }
 
@@ -1416,17 +1422,17 @@ void shader_core_ctx::execute()
        	    	//if (last_stage->get_num_operands()>1) {
         	    	if (last_stage->get_inst_ptr()->has_memory_read()) {
         	    		in_operand_num++;
-        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (LOAD_OP) (clk: %u | in_operand_num: %d) \n"
+        	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (LOAD_OP) (clk: %u | in_operand_num: %d) \n"
         	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
         	    	}
         	    	else {
         	    		in_operand_num = MAX(last_stage->get_in_operand_num(), last_stage->get_num_operands());
-        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (clk: %u | in_operand_num: %d)\n"
+        	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (clk: %u | in_operand_num: %d)\n"
         	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
         	    	}
 
         	    	for (int i=0; i<in_operand_num; i++) {
-        	    		printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
+        	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
         	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
         	    		vuln_reg = NULL;
         	    		if (last_stage->get_inst_ptr()->src_ptr(i)->is_reg()) {
@@ -1457,7 +1463,7 @@ void shader_core_ctx::execute()
             	    		}
             	    		vuln_reg->end[reg_ref_cnt] = tot_clk;
 
-            	    		printf("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+            	    		PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
             	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], last_stage->active_count());
 
 //            	    		// This handles the recursive case
@@ -1478,7 +1484,7 @@ void shader_core_ctx::execute()
         	    // After handle all the other case, check weather this is a next time.
         	    if (!last_stage->get_inst_ptr()->has_memory_write() && last_stage->get_num_operands()>0) {
        	    	//if (last_stage->get_inst_ptr()->dst_ptr()->is_reg() && last_stage->get_inst_ptr()->has_memory_write()==false) {
-	    			printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
+        	    	PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
 	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk);
 
         	    	if (last_stage->get_inst_ptr()->dst_ptr()->is_reg()) {
@@ -1491,7 +1497,7 @@ void shader_core_ctx::execute()
                 	    reg_ref_cnt = dst_vuln_reg->get_ref_cnt();
                 	    if (dst_vuln_reg->get_cnt()>reg_ref_cnt ) {
                 	    	dst_vuln_reg->inc_ref_cnt();
-        	    			printf("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
+                	    	PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
         	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), dst_vuln_reg->name.c_str(), dst_vuln_reg->reg_id, dst_vuln_reg->get_ref_cnt(), tot_clk);
 
         	    			dst_vuln_reg->start[reg_ref_cnt+1] = tot_clk;
