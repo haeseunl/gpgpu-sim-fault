@@ -149,9 +149,24 @@ void *gpgpu_sim_thread_concurrent(void*)
 					g_the_gpu->getFullSIMTCluster()[i]->print_vuln_result();
 				}
 
+				FILE *ofp;
+				char *mode = "r";
+				char outputFilename[] = "vuln-measurement";
+
+				ofp = fopen(outputFilename, "w");
+				if (ofp == NULL) {
+					fprintf(stderr, "Can't open output file %s!\n", outputFilename);
+					exit(1);
+				}
+				unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 				printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-				printf("[Vuln-analysis] gpu_tot_vuln_period: %llu\n", gpu_tot_vuln_period);
+				printf("[Vuln-analysis] gpu_tot_vuln_period : %llu\n", gpu_tot_vuln_period);
+				printf("[Performance] Total simulation clock: %llu\n", tot_clk);
 				printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n");
+
+				fprintf(ofp, "[Vuln-analysis] gpu_tot_vuln_period : %llu\n", gpu_tot_vuln_period);
+				fprintf(ofp, "[Performance] Total simulation clock: %llu\n", tot_clk);
+				fclose(ofp);
 
 				/////////////////////////////////////////////////////////////////////
 				break;

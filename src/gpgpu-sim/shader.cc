@@ -3720,17 +3720,7 @@ void simt_core_cluster::core_cycle()
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////
-void simt_core_cluster::print_vuln_result(void)
-{
-	printf("===================================================\n");
-	printf("SIMTCluster (ID: %d)\n", this->m_cluster_id);
-    for( std::list<unsigned>::iterator it = m_core_sim_order.begin(); it != m_core_sim_order.end(); ++it ) {
-        m_core[*it]->print_vuln_result();
-    }
-    printf("===================================================\n");
-}
-/////////////////////////////////////////////////////////////////////////////////
+
 
 
 
@@ -4029,6 +4019,25 @@ warp_vuln_info* shader_core_ctx::get_exist_warp(int hwid)
 	return ret;
 }
 
+#define DEBUG_PRINTF_
+#ifdef DEBUG_PRINTF
+#define PRINT(...) printf(__VA_ARGS__)
+#else
+#define PRINT(...)
+#endif
+
+/////////////////////////////////////////////////////////////////////////////////
+void simt_core_cluster::print_vuln_result(void)
+{
+	PRINT("===================================================\n");
+	PRINT("SIMTCluster (ID: %d)\n", this->m_cluster_id);
+    for( std::list<unsigned>::iterator it = m_core_sim_order.begin(); it != m_core_sim_order.end(); ++it ) {
+        m_core[*it]->print_vuln_result();
+    }
+    PRINT("===================================================\n");
+}
+/////////////////////////////////////////////////////////////////////////////////
+
 void shader_core_ctx::print_vuln_result(void)
 {
 	unsigned long long tot_vuln_period = 0;
@@ -4040,31 +4049,31 @@ void shader_core_ctx::print_vuln_result(void)
 
 	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
 		vuln_period_per_warp = 0;
-		printf("----------------------------------------------\n");
+		PRINT("----------------------------------------------\n");
 		thd_num = this->vuln_warp_info[i]->warp_thread_cnt;
-		printf(" [%d]th warp (warp_thread_cnt: %d)\n", i, thd_num);
+		PRINT(" [%d]th warp (warp_thread_cnt: %d)\n", i, thd_num);
 		for (unsigned int r=0; r<this->vuln_warp_info[i]->vuln_regs.size(); r++) {
-			printf("  [%d]th Reg name: %s (id: %d)\n", r, this->vuln_warp_info[i]->vuln_regs[r]->name.c_str(), this->vuln_warp_info[i]->vuln_regs[r]->reg_id);
+			PRINT("  [%d]th Reg name: %s (id: %d)\n", r, this->vuln_warp_info[i]->vuln_regs[r]->name.c_str(), this->vuln_warp_info[i]->vuln_regs[r]->reg_id);
 			vuln_period_per_reg = 0;
 			assert(this->vuln_warp_info[i]->vuln_regs[r]->end.size()==this->vuln_warp_info[i]->vuln_regs[r]->start.size());
 			for (unsigned int cnt=0; cnt<this->vuln_warp_info[i]->vuln_regs[r]->start.size(); cnt++) {
 				vuln_period = this->vuln_warp_info[i]->vuln_regs[r]->end[cnt]-this->vuln_warp_info[i]->vuln_regs[r]->start[cnt];
-				printf("   - (%d)th vulnerable period: %u (start: %u | end %u)\n"
+				PRINT("   - (%d)th vulnerable period: %u (start: %u | end %u)\n"
 						, cnt, vuln_period
 						, this->vuln_warp_info[i]->vuln_regs[r]->start[cnt], this->vuln_warp_info[i]->vuln_regs[r]->end[cnt]);
 				vuln_period_per_reg += vuln_period;
 			}
 
-			printf("  [Reg sum] Total vulnerable period for Reg [%s] (id: %d): %u\n"
+			PRINT("  [Reg sum] Total vulnerable period for Reg [%s] (id: %d): %u\n"
 					, this->vuln_warp_info[i]->vuln_regs[r]->name.c_str(), this->vuln_warp_info[i]->vuln_regs[r]->reg_id, vuln_period_per_reg);
 			vuln_period_per_warp += vuln_period_per_reg;
 		}
-		printf("[Warp sum] Vulnerable period for (%d)th warp: %u\n", i, vuln_period_per_warp);
+		PRINT("[Warp sum] Vulnerable period for (%d)th warp: %u\n", i, vuln_period_per_warp);
 		tot_vuln_period += (vuln_period_per_warp*thd_num);
-		printf("----------------------------------------------\n");
+		PRINT("----------------------------------------------\n");
 	}
 
 	gpu_tot_vuln_period += tot_vuln_period;
-	printf("[Vulnerability] Total vulnerable period: %u\n", tot_vuln_period);
+	PRINT("[Vulnerability] Total vulnerable period[SM: %d]: %u\n", this->get_sid(), tot_vuln_period);
 
 }
