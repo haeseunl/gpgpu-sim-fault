@@ -76,7 +76,8 @@ extern std::vector<fault*> fault_injection_list;
 extern std::vector<fault*> effective_fault_list;
 extern void read_effective_fault_list(void);
 ///////////////////////////////////////////////////////////
-
+extern unsigned long long ullTotalVulnPeriod = 0;
+///////////////////////////////////////////////////////////
 
 enum dram_ctrl_t {
    DRAM_FIFO=0,

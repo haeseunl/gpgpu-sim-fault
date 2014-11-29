@@ -112,6 +112,9 @@ FILE* fault_injection_write=NULL;
 std::vector<fault*> fault_injection_list;
 std::vector<fault*> effective_fault_list;
 ///////////////////////////////////////////////////////////
+unsigned long long ullTotalVulnPeriod = 0;
+///////////////////////////////////////////////////////////
+
 
 #include "mem_latency_stat.h"
 
