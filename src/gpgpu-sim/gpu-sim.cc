@@ -530,6 +530,16 @@ bool gpgpu_sim::get_more_cta_left() const
    return false;
 }
 
+bool gpgpu_sim::stuck_by_fault_injection(void) const
+{
+	unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+	if (fault_injection_phase==APPLY_FAULT && fault_injection_clk_limit<tot_clk && fault_injection_clk_limit>0) {
+		printf("[Fault injection] Application is stuck... stop the application.\n");
+		return false;
+	}
+	return true;
+}
+
 kernel_info_t *gpgpu_sim::select_kernel()
 {
     for(unsigned n=0; n < m_running_kernels.size(); n++ ) {
@@ -1196,11 +1206,11 @@ void gpgpu_sim::cycle()
 		printf("[Fault injection] Create fault injection list..\n");
 		create_fault_list(tot_clk_cycle);
 	}
-
-	if (fault_injection_phase==APPLY_FAULT && fault_injection_clk_limit<tot_clk_cycle && fault_injection_clk_limit>0) {
-		printf("[Fault injection] Application is stuck... stop the application.\n");
-		std::exit(1);
-	}
+//
+//	if (fault_injection_phase==APPLY_FAULT && fault_injection_clk_limit<tot_clk_cycle && fault_injection_clk_limit>0) {
+//		printf("[Fault injection] Application is stuck... stop the application.\n");
+//		std::exit(1);
+//	}
 
 
 

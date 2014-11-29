@@ -76,7 +76,7 @@ extern std::vector<fault*> fault_injection_list;
 extern std::vector<fault*> effective_fault_list;
 extern void read_effective_fault_list(void);
 ///////////////////////////////////////////////////////////
-extern unsigned long long ullTotalVulnPeriod = 0;
+extern unsigned long long ullTotalVulnPeriod;
 ///////////////////////////////////////////////////////////
 
 enum dram_ctrl_t {
@@ -508,6 +508,10 @@ public:
    bool has_special_cache_config(std::string kernel_name);
    void change_cache_config(FuncCache cache_config);
    void set_cache_config(std::string kernel_name);
+
+
+   // fault injection
+   bool stuck_by_fault_injection(void) const;
 
 };
 
