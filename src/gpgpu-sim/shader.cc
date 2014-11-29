@@ -3128,6 +3128,7 @@ void opndcoll_rfu_t::init( unsigned num_banks, shader_core_ctx *shader )
    for( unsigned j=0; j<m_cu.size(); j++) {
        m_cu[j]->init(j,num_banks,m_bank_warp_shift,shader->get_config(),this);
    }
+
    m_initialized=true;
 }
 
