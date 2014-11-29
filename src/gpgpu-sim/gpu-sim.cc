@@ -535,9 +535,9 @@ bool gpgpu_sim::stuck_by_fault_injection(void) const
 	unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 	if (fault_injection_phase==APPLY_FAULT && fault_injection_clk_limit<tot_clk && fault_injection_clk_limit>0) {
 		printf("[Fault injection] Application is stuck... stop the application.\n");
-		return false;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 kernel_info_t *gpgpu_sim::select_kernel()
@@ -716,6 +716,10 @@ bool gpgpu_sim::active()
         return true;
     if( get_more_cta_left() )
         return true;
+
+    if( stuck_by_fault_injection() )
+        return false;
+
     return false;
 }
 

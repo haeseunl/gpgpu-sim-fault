@@ -1,5 +1,5 @@
-CUDA_INSTALL_PATH=/home/haeseunl/bin/cuda40/cuda
-NVIDIA_COMPUTE_SDK_LOCATION=/home/haeseunl/bin/cuda40/NVIDIA_GPU_Computing_SDK
+CUDA_INSTALL_PATH=/home/haeseunl/bin/nvidia-cuda40/cuda
+NVIDIA_COMPUTE_SDK_LOCATION=/home/haeseunl/bin/nvidia-cuda40/NVIDIA_GPU_Computing_SDK
 
 # see README before running this
 
