@@ -146,7 +146,13 @@ void *gpgpu_sim_thread_concurrent(void*)
 
 				/////////////////////////////////////////////////////////////////////
 				for (unsigned i=0;i<g_the_gpu->getShaderCoreConfig()->n_simt_clusters;i++) {
-					//g_the_gpu->getFullSIMTCluster()[i]->print_vuln_result();
+					unsigned long long ullVulnperiod = g_the_gpu->getSIMTCluster(i)->get_core()->GetVulnData();
+					g_the_gpu->getSIMTCluster(i)->get_core()->ClrVulnData();
+
+				    ullTotalVulnPeriod = ullTotalVulnPeriod + ullVulnperiod;
+
+				    printf("[Vuln estimation]: core:%3d, ullVulnperiod: %llu | ullTotalVulnPeriod: %llu\n", i, ullVulnperiod, ullTotalVulnPeriod);
+
 				}
 
 				FILE *ofp;

@@ -48,6 +48,8 @@ public:
     bool pendingWrites(unsigned wid) const;
     void printContents() const;
     const bool islongop(unsigned warp_id, unsigned regnum);
+
+    bool checkCollisionReg( unsigned wid, int reg_num);
 private:
     void reserveRegister(unsigned wid, unsigned regnum);
     int get_sid() const { return m_sid; }

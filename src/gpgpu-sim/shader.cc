@@ -812,6 +812,23 @@ void scheduler_unit::cycle()
     bool ready_inst = false;  // of the valid instructions, there was one not waiting for pending register writes
     bool issued_inst = false; // of these we issued one
 
+    // every clock cycle check the data is ready.
+    int data_num=m_shader->vecRegInfo.size();
+
+
+    for(int r=0; r<data_num; r++) {
+    	if (!m_shader->vecRegInfo[r]->IsRdy()) {
+    		if (!m_scoreboard->checkCollisionReg(m_shader->vecRegInfo[r]->GetWid(), m_shader->vecRegInfo[r]->GetRegNum())) {
+    			unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+    			printf("[Scoreboard] Reg: %s | regnum: %d | wid: %d - is ready at %llu\n"
+    					, m_shader->vecRegInfo[r]->GetRegName().c_str(), m_shader->vecRegInfo[r]->GetRegNum()
+    					, m_shader->vecRegInfo[r]->GetWid(), tot_clk);
+    			m_shader->vecRegInfo[r]->SetRdy();
+    			m_shader->vecRegInfo[r]->SetStart(tot_clk);
+    		}
+    	}
+    }
+
     order_warps();
     for ( std::vector< shd_warp_t* >::const_iterator iter = m_next_cycle_prioritized_warps.begin();
           iter != m_next_cycle_prioritized_warps.end();
@@ -1588,11 +1605,41 @@ pipelined_simd_unit::pipelined_simd_unit( register_set* result_port, const shade
     m_core=core;
 }
 
+
+
+
+
+
+
 void pipelined_simd_unit::cycle()
 {
+
 	//printf("pipelined_simd_unit::cycle()");
     if( !m_pipeline_reg[0]->empty() ){
         m_result_port->move_in(m_pipeline_reg[0]);
+
+        clsVulnInfo* info = NULL;
+        if (m_pipeline_reg[0]->valid()) {
+        	printf("[pipelined_simd_unit::cycle()] last stage!! (wid: %d) %s\n", m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str());
+            std::vector<std::string> SrcRegs;
+            GetSrcRegs(m_pipeline_reg[0], SrcRegs);
+            unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+            for (int i=0; i<SrcRegs.size(); i++) {
+            	info = this->m_core->GetReginfo(this->m_core->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), SrcRegs[i]);
+            	if (info!=NULL) {
+            		//assert(info->IsRdy()==true);
+            		printf("[pipelined_simd_unit::cycle()] Update info %s: [%llu - %llu] - %s\n"
+            				, SrcRegs[i].c_str(), info->GetStart(), tot_clk, m_pipeline_reg[0]->get_asm_str().c_str());
+            		info->IsRdy();
+            		info->SetEnd(tot_clk);
+            	}
+            }
+        }
+
+
+
+        //this->m_core
+
     }
     for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ )
         move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage+1]);
@@ -1959,9 +2006,38 @@ void ldst_unit::cycle()
 {
    writeback();
    m_operand_collector->step();
-   for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ) 
-       if( m_pipeline_reg[stage]->empty() && !m_pipeline_reg[stage+1]->empty() )
-            move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage+1]);
+
+
+   if( !m_dispatch_reg->empty() ){
+
+	   clsVulnInfo* info = NULL;
+	   if (m_dispatch_reg->valid()) {
+		   printf("[ldst_unit::cycle()] last stage!! %s\n", m_dispatch_reg->get_asm_str().c_str());
+		   std::vector<std::string> SrcRegs;
+		   GetSrcRegs(m_dispatch_reg, SrcRegs);
+		   unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+		   for (int i=0; i<SrcRegs.size(); i++) {
+			   info = this->m_core->GetReginfo(this->m_core->get_sid(), m_dispatch_reg->get_m_hw_warp_id(), SrcRegs[i]);
+			   if (info!=NULL) {
+				   //assert(info->IsRdy());
+				   printf("[ldst_unit::cycle()] Update info %s: [%llu - %llu] - %s\n"
+						   , SrcRegs[i].c_str(), info->GetStart(), tot_clk, m_dispatch_reg->get_asm_str().c_str());
+				   info->SetEnd(tot_clk);
+			   }
+		   }
+	   }
+
+   }
+   if (m_pipeline_reg[2]->valid()) {
+   	printf("[ldst_unit::cycle()] last stage!! %s\n", m_pipeline_reg[2]->get_asm_str().c_str());
+   }
+
+   for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ) {
+	   if( m_pipeline_reg[stage]->empty() && !m_pipeline_reg[stage+1]->empty() ) {
+		   move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage+1]);
+	   }
+   }
+
 
    if( !m_response_fifo.empty() ) {
        mem_fetch *mf = m_response_fifo.front();
@@ -2938,6 +3014,9 @@ void shader_core_ctx::set_max_cta( const kernel_info_t &kernel )
     kernel_padded_threads_per_cta = (gpu_cta_size%m_config->warp_size) ? 
         m_config->warp_size*((gpu_cta_size/m_config->warp_size)+1) : 
         gpu_cta_size;
+
+    // Set thread block number
+    SetTbSize(gpu_cta_size);
 }
 
 void shader_core_ctx::decrement_atomic_count( unsigned wid, unsigned n )
@@ -3012,6 +3091,48 @@ void shader_core_ctx::get_icnt_power_stats(long &n_simt_to_mem, long &n_mem_to_s
 	n_simt_to_mem += m_stats->n_simt_to_mem[m_sid];
 	n_mem_to_simt += m_stats->n_mem_to_simt[m_sid];
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void shader_core_ctx::AddReginfo(int SmId, clsVulnInfo* target)
+{
+	assert(SmId==this->get_sid());
+	//printf("shader_core_ctx::AddReginfo\n");
+	vecRegInfo.push_back(target);
+}
+
+bool shader_core_ctx::FindReginfo(int SmId, int wid, std::string name)
+{
+	assert(SmId==this->get_sid());
+	int size;
+	bool found = false;
+	size = vecRegInfo.size();
+	for (int i=0; i<size; i++) {
+		if (!vecRegInfo[i]->GetRegName().compare(name.c_str()) && vecRegInfo[i]->GetWid()==wid) {
+			found = true;
+			break;
+		}
+	}
+
+	return found;
+}
+
+clsVulnInfo* shader_core_ctx::GetReginfo(int SmId, int wid, std::string name)
+{
+	assert(SmId==this->get_sid());
+	int size;
+	clsVulnInfo* found = NULL;
+	size = vecRegInfo.size();
+	for (int i=0; i<size; i++) {
+		if (!vecRegInfo[i]->GetRegName().compare(name.c_str()) && vecRegInfo[i]->GetWid()==wid) {
+			found = vecRegInfo[i];
+		}
+	}
+	return found;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 bool shd_warp_t::functional_done() const
 {
@@ -3427,6 +3548,12 @@ unsigned simt_core_cluster::issue_block2core()
     }
     return num_blocks_issued;
 }
+
+
+
+
+
+
 
 void simt_core_cluster::cache_flush()
 {

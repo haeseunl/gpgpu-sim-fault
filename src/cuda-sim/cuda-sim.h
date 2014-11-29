@@ -105,6 +105,8 @@ public:
         return (m_warpAtBarrier[warp_id] || !(m_liveThreadCount[warp_id]>0));
     }
     
+
+
 private:
     void executeWarp(unsigned, bool &, bool &);
     //initializes threads in the CTA block which we are executing

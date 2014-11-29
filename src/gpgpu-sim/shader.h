@@ -54,6 +54,7 @@
 #include "gpu-cache.h"
 #include "traffic_breakdown.h"
 
+class clsVulnInfo;
 
 
 #define NO_OP_FLAG            0xFF
@@ -1840,6 +1841,23 @@ public:
     // is that the dynamic_warp_id is a running number unique to every warp
     // run on this shader, where the warp_id is the static warp slot.
     unsigned m_dynamic_warp_id;
+
+    // vulnerable period
+    int nThdBlkSize;
+
+public:
+    void SetTbSize(int data) { nThdBlkSize = data; }
+    int GetTbSize(void) { return nThdBlkSize; }
+    void AddReginfo(int SmId, clsVulnInfo* target);
+    bool FindReginfo(int SmId, int wid, std::string name);
+    clsVulnInfo* GetReginfo(int SmId, int wid, std::string name);
+
+    std::vector<clsVulnInfo*> vecRegInfo;
+
+    unsigned long long GetVulnData(void);
+    void ClrVulnData(void);
+
+
 };
 
 class simt_core_cluster {
@@ -1886,6 +1904,8 @@ public:
     void get_L1T_sub_stats(struct cache_sub_stats &css) const;
 
     void get_icnt_stats(long &n_simt_to_mem, long &n_mem_to_simt) const;
+
+    shader_core_ctx* get_core(void) {return *m_core;}
 
 private:
     unsigned m_cluster_id;

@@ -1176,6 +1176,11 @@ class core_t {
         void or_reduction(unsigned ctaid, unsigned barid, bool value) { reduction_storage[ctaid][barid] |= value; }
         void popc_reduction(unsigned ctaid, unsigned barid, bool value) { reduction_storage[ctaid][barid] += value;}
         unsigned get_reduction_value(unsigned ctaid, unsigned barid) {return reduction_storage[ctaid][barid];}
+
+        /////////////////////////////////////////////////////////////////////
+
+
+
     protected:
         class gpgpu_sim *m_gpu;
         kernel_info_t *m_kernel;

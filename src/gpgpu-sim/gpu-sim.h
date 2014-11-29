@@ -432,6 +432,8 @@ public:
     */
     simt_core_cluster * getSIMTCluster();
 
+    simt_core_cluster * getSIMTCluster(int id);
+
 
 private:
    // clocks
@@ -514,5 +516,70 @@ public:
    bool stuck_by_fault_injection(void) const;
 
 };
+
+class clsVulnInfo
+{
+public:
+
+	void SetRegName(std::string data) { name=data;}
+	std::string GetRegName(void) {return name; }
+
+	void SetInstStr(std::string data) { InstStr=data;}
+	std::string GetInstStr(void) {return InstStr; }
+
+
+	void SetWid(int data) { nWid=data;}
+	int GetWid(void) { return nWid;}
+	void SetHwTid(int data) { nHwTid=data;}
+	int GetHwTid(void) { return nHwTid;}
+
+	void SetSmId(int data) { nSmId=data;}
+	int GetSmId(void) { return nSmId;}
+
+	void SetRegNum(int data) { nSmId=data;}
+	int GetRegNum(void) { return nSmId;}
+
+	void SetRdy(void) { rdy=true;}
+	void ClrRdy(void) { rdy=false;}
+	int IsRdy(void) { return rdy;}
+
+	void SetStart(unsigned long long data) { Start=data;}
+	unsigned long long GetStart(void) { return Start;}
+
+	void SetEnd(unsigned long long data) { End=data;}
+	unsigned long long GetEnd(void) { return End;}
+
+	unsigned long long GetVulnPeriod(void) { assert(End-Start); return (End-Start);}
+
+	int IsMatch(std::string data, int tid) { return ((name.compare(data)) && (tid=nHwTid)); }
+
+	clsVulnInfo() {
+		name.clear();
+		InstStr.clear();
+		nHwTid = -1;
+		nSmId = -1;
+		nRegNum = 0;
+		Start = 0;
+		End = 0;
+		rdy = false;
+	}
+
+private:
+	std::string name;
+	std::string InstStr;
+	int nWid;
+	int nHwTid;
+	int nSmId;
+	int nRegNum;
+
+	unsigned long long Start;
+	unsigned long long End;
+
+	bool rdy;
+};
+
+
+void GetDestReg(std::vector<std::string>& data, std::string InstStr, int flag);
+void GetSrcRegs(warp_inst_t *m_pipeline_reg, std::vector<std::string>& SrcRegs);
 
 #endif

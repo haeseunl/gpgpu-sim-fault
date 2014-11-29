@@ -38,6 +38,7 @@
 #include "../statwrapper.h"
 #include <set>
 #include <map>
+#include <vector>
 #include "../abstract_hardware_model.h"
 #include "memory.h"
 #include "ptx-stats.h"
@@ -1206,6 +1207,25 @@ static unsigned get_tex_datasize( const ptx_instruction *pI, ptx_thread_info *th
    return data_size; 
 }
 
+
+std::string GetPredReg(std::string InstStr) {
+	std::size_t predloc = InstStr.find("%");
+	std::size_t end;
+	std::string predreg;
+	// Find predicate register
+	end = InstStr.find(" ", predloc+1);
+	if (end!=std::string::npos) {
+		predreg = InstStr.substr(predloc, end-(predloc));
+		//printf(" - predicate reg: %s \n", predreg.c_str());
+	}
+
+	return predreg;
+}
+
+
+
+
+
 // TODO:
 void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
 {
@@ -1225,7 +1245,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    std::string inst_asm_string = inst.get_asm_str();
    int apply_fault = 0;
    ////////////////////////////////////////////////////
-
+   shader_core_ctx* shader = get_gpu()->getSIMTCluster(this->get_hw_sid())->get_core();
 
    try {
 
@@ -1264,6 +1284,8 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    }
 
 
+   std::string InstStr;
+   std::string predreg;
    
    if( pI->has_pred() ) {
       const operand_info &pred = pI->get_pred();
@@ -1273,7 +1295,32 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       } else {
             skip = !pred_lookup(pI->get_pred_mod(), pred_value.pred & 0x000F);
       }
+
+      // looking for the registers.
+      InstStr = pI->get_asm_str();
+
+      //printf("Inst has predicate: %s\n", InstStr.c_str());
+
+      //////////////////////////////////////////////////////////////
+      predreg = GetPredReg(InstStr);
+      //////////////////////////////////////////////////////////////
+
+	   clsVulnInfo* info = NULL;
+	   unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+	   info = shader->GetReginfo(shader->get_sid(), this->get_hw_wid(), predreg);
+	   if (info!=NULL) {
+		   //assert(info->IsRdy());
+		   printf("[ptx_exec_inst] Predicate reg info %s: [%llu - %llu]\n"
+				   , predreg.c_str(), info->GetStart(), tot_clk);
+		   info->SetEnd(tot_clk);
+	   }
+
+
    }
+//   else {
+//	   InstStr = pI->get_asm_str();
+//	   printf("Inst has not predicate: %s\n", InstStr.c_str());
+//   }
    
    if( skip ) {
       inst.set_not_active(lane_id);
@@ -1317,8 +1364,82 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
     	  }
       }
 
+      std::vector<std::string> DstRegs;
+      std::vector<std::string> SrcRegs;
+      int nHwTid = this->get_hw_tid();
 
-      
+      // get inst string
+      InstStr = pI->get_asm_str();
+      // find destination regs and src regs
+      DstRegs.clear();
+      GetDestReg(DstRegs, InstStr, pI->has_pred());
+
+      int num_cnt = 0;
+      int regnum = 0;
+      int size = DstRegs.size();
+
+
+
+      if(inst.out[0] > 0) { num_cnt++; }
+      if(inst.out[1] > 0) { num_cnt++; }
+      if(inst.out[2] > 0) { num_cnt++; }
+      if(inst.out[3] > 0) { num_cnt++; }
+
+//      if (pI->get_opcode()==ST_OP) {
+//    	  printf("DstRegs.size(): %d\n", DstRegs.size());
+//      }
+
+      shader_core_ctx* shader = get_gpu()->getSIMTCluster(this->get_hw_sid())->get_core();
+      clsVulnInfo* newInfo;
+
+      //create one reg per warp
+
+      for (int i=0; i<(int)num_cnt; i++) {
+    	  regnum = inst.out[i];
+    	  //this->get_hw_wid();
+    	  newInfo = shader->GetReginfo(this->get_hw_sid(), this->get_hw_wid(), DstRegs[i]);
+    	  if (newInfo==NULL) {
+    		  newInfo = new clsVulnInfo;
+    		  newInfo->SetWid(this->get_hw_wid());
+    		  newInfo->SetHwTid(this->get_hw_tid());
+    		  newInfo->SetSmId(this->get_hw_sid());
+    		  newInfo->SetRegName(DstRegs[i]);
+    		  newInfo->SetRegNum(regnum);
+    		  newInfo->SetInstStr(InstStr);
+    		  newInfo->ClrRdy();
+    		  shader->AddReginfo(this->get_hw_sid(), newInfo);
+
+    		  printf("[Vuln] Can't find. Create new reg info. (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
+    				  ,this->get_hw_sid(), this->get_hw_wid(), newInfo->GetRegName().c_str(), newInfo->GetRegNum());
+    	  }
+    	  else {
+    		 // printf("[Vuln] Find Regs (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
+    		   //   				  ,this->get_hw_sid(), this->get_hw_wid(), DstRegs[i].c_str(),regnum);
+    		  //printf("[Vuln] inst: %s\n", InstStr.c_str());
+    		  if (newInfo->IsRdy()) {
+    			  printf("[Vuln] Second creation. (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
+    			      ,this->get_hw_sid(), this->get_hw_wid(), DstRegs[i].c_str(),regnum);
+        		  newInfo = new clsVulnInfo;
+        		  newInfo->SetWid(this->get_hw_wid());
+        		  newInfo->SetHwTid(this->get_hw_tid());
+        		  newInfo->SetSmId(this->get_hw_sid());
+        		  newInfo->SetRegName(DstRegs[i]);
+        		  newInfo->SetRegNum(regnum);
+        		  newInfo->SetInstStr(InstStr);
+        		  newInfo->ClrRdy();
+        		  shader->AddReginfo(this->get_hw_sid(), newInfo);
+    		  }
+
+    	  }
+    	  //create the list
+      }
+
+
+
+
+
+
+
       // Run exit instruction if exit option included
       if(pI->is_exit())
          exit_impl(pI,this);

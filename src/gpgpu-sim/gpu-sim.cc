@@ -1100,6 +1100,27 @@ void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst)
 #endif
 
 
+
+
+unsigned long long shader_core_ctx::GetVulnData(void)
+{
+	unsigned long long partial = 0;
+	for (int i=0; i<(int)vecRegInfo.size(); i++) {
+		printf("[%s] vecRegInfo[%d].start: %llu | vecRegInfo[%d].end: %llu\n", vecRegInfo[i]->GetRegName().c_str(), i, vecRegInfo[i]->GetStart(), i, vecRegInfo[i]->GetEnd());
+		partial = partial + vecRegInfo[i]->GetVulnPeriod();
+	}
+	return partial;
+}
+
+void shader_core_ctx::ClrVulnData(void)
+{
+	for (int i=0; i<(int)vecRegInfo.size(); i++) {
+		delete vecRegInfo[i];
+	}
+	vecRegInfo.clear();
+}
+
+//extern unsigned long long ullTotalVulnPeriod;
 void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) 
 {
     set_max_cta(kernel);
@@ -1122,11 +1143,16 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     // hw warp id = hw thread id mod warp size, so we need to find a range 
     // of hardware thread ids corresponding to an integral number of hardware
     // thread ids
+
+    // this is local thread ID. In the SM level. Each SM have 0-X thread id
+    // free_cta_hw_id may represent existing CTA, but rarely used. Most of time equal to 0.
     int padded_cta_size = cta_size; 
     if (cta_size%m_config->warp_size)
       padded_cta_size = ((cta_size/m_config->warp_size)+1)*(m_config->warp_size);
     unsigned start_thread = free_cta_hw_id * padded_cta_size;
     unsigned end_thread  = start_thread +  cta_size;
+
+    ISU_DBG("[issue_block2core] start_thread: %d | end_thread: %d\n", start_thread, end_thread);
 
     // reset the microarchitecture state of the selected hardware thread and warp contexts
     reinit(start_thread, end_thread,false);
@@ -1155,6 +1181,15 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
 
     shader_CTA_count_log(m_sid, 1);
     printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
+
+
+    unsigned long long ullVulnperiod = 0;
+    ullVulnperiod = this->GetVulnData();
+    this->ClrVulnData();
+
+    ullTotalVulnPeriod = ullTotalVulnPeriod + ullVulnperiod;
+
+    printf("[Vuln estimation]: core:%3d, ullVulnperiod: %lld | ullTotalVulnPeriod: %llu\n", m_sid, ullVulnperiod, ullTotalVulnPeriod);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -1486,6 +1521,11 @@ simt_core_cluster * gpgpu_sim::getSIMTCluster()
    return *m_cluster;
 }
 
+simt_core_cluster * gpgpu_sim::getSIMTCluster(int id)
+{
+   return m_cluster[id];
+}
+
 //////////////////////////////////////////////////////////////////////
 void create_fault_list(unsigned long long base_clk) {
 	std::vector<unsigned long long> offset_clk;
@@ -1721,3 +1761,124 @@ void read_effective_fault_list(void)
 
 }
 ///////////////////////////////////////////////////////////////////////
+
+
+void GetDestReg(std::vector<std::string>& data, std::string InstStr, int flag) {
+
+	std::size_t end;
+	std::size_t found;
+	std::size_t exit;
+	std::string operand;
+	std::string dest;
+	std::string reg;
+
+
+	exit = InstStr.find("exit");
+
+	if (exit==std::string::npos) {
+		end = InstStr.find(" ");
+
+		if (flag) {
+			end = InstStr.find(" ", end+1);
+		}
+
+		found = InstStr.find(" ", end+1);
+		end = InstStr.find_first_not_of(" ", found+1);
+
+		//printf(" - GetDestReg: %s \n", InstStr.substr(end, InstStr.size()-(end)).c_str());
+		if (end!=std::string::npos && found!=std::string::npos) {
+			operand = InstStr.substr(end, InstStr.size()-(end));
+			//printf(" - operand: %s \n", operand.c_str());
+		}
+
+		found = operand.find("%");
+		end = operand.find("}");
+		if (end!=std::string::npos) {
+			dest = operand.substr(found, (end-found));
+		}
+		else {
+			end = operand.find(",");
+			if (end!=std::string::npos) {
+				dest = operand.substr(found, (end-found));
+			}
+		}
+		//printf(" - dest: %s \n", dest.c_str());
+		int nInfoNum = std::count(dest.begin(), dest.end(), ',');
+		nInfoNum++;
+		//printf(" - operand has (%d) info\n", nInfoNum);
+
+		found=0;
+		for (int nCnt=0; nCnt<nInfoNum; nCnt++) {
+			end = dest.find_first_not_of("rdfp1234567890% ", found);
+			if (found!=std::string::npos && end!=std::string::npos) {
+				reg = dest.substr(found, (end-found));
+				found = dest.find("%", end);
+			}
+			else {
+				reg = dest.substr(found, dest.size()-(found));
+			}
+			//printf(" - dest reg: %s\n", reg.c_str());
+			data.push_back(reg);
+		}
+	}
+}
+
+void GetSrcRegs(warp_inst_t *m_pipeline_reg, std::vector<std::string>& SrcRegs)
+{
+	std::vector<std::string> DstRegs;
+
+    int nHwTid = m_pipeline_reg->get_m_hw_thd_id();
+
+    // get inst string
+    std::string InstStr = m_pipeline_reg->get_asm_str();
+    // find destination regs and src regs
+    DstRegs.clear();
+    GetDestReg(DstRegs, InstStr, 1);
+
+    int num_cnt = 0;
+    int regnum = 0;
+    int size = DstRegs.size();
+
+
+    int nInfoNum = std::count(InstStr.begin(), InstStr.end(), '%');
+
+	std::size_t end;
+	std::size_t begin;
+	std::size_t exit;
+	std::string op;
+
+
+    printf("inst has (%d) regs (%s)\n", nInfoNum, InstStr.c_str());
+
+    if (nInfoNum>0) {
+    	end = 0;
+        for (int i=0; i<nInfoNum; i++)
+        {
+        	begin = InstStr.find("%", end);
+        	end = InstStr.find_first_not_of("rdfp1234567890% ", begin);
+        	if (begin!=std::string::npos && end!=std::string::npos) {
+            	op = InstStr.substr(begin, end-begin);
+            	if (op.size()>1) {
+                	SrcRegs.push_back(op);
+                	printf("(%d)th operand (%s)\n", i, op.c_str());
+            	}
+        	}
+        }
+        int cnt=0;
+        cnt = 0;
+        printf(" DstRegs.size(): %d\n", DstRegs.size());
+
+        if (m_pipeline_reg->op!=STORE_OP) {
+            for (int r=0; r<DstRegs.size(); r++) {
+            	SrcRegs.erase(SrcRegs.begin()+0);
+            }
+        }
+
+
+        for (int i=0; i<SrcRegs.size(); i++) {
+        	printf("(%d)th src (%s)\n", i, SrcRegs[i].c_str());
+        }
+    }
+
+}
+

@@ -163,3 +163,19 @@ bool Scoreboard::pendingWrites(unsigned wid) const
 {
 	return !reg_table[wid].empty();
 }
+
+bool Scoreboard::checkCollisionReg( unsigned wid, int reg_num)
+{
+	// Get list of all input and output registers
+	std::set<int> inst_regs;
+
+	inst_regs.insert(reg_num);
+
+	// Check for collision, get the intersection of reserved registers and instruction registers
+	std::set<int>::const_iterator it2;
+	for ( it2=inst_regs.begin() ; it2 != inst_regs.end(); it2++ )
+		if(reg_table[wid].find(*it2) != reg_table[wid].end()) {
+			return true;
+		}
+	return false;
+}
