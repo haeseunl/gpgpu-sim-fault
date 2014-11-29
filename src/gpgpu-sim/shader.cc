@@ -1439,10 +1439,10 @@ void shader_core_ctx::execute()
         	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
             	    		reg_id = last_stage->get_inst_ptr()->src_ptr(i)->reg_num();
             	    		vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-            	    		if ((vuln_reg==NULL)) {
-            	    			printf("[FATAL]th reg: %s (id: %d) not found\n", reg_name.c_str(), reg_id);
-            	    			assert(0) ;
-            	    		}
+//            	    		if ((vuln_reg==NULL)) {
+//            	    			printf("[FATAL]th reg: %s (id: %d) not found\n", reg_name.c_str(), reg_id);
+//            	    			assert(0) ;
+//            	    		}
 
         	    		}
         	    		else if (last_stage->get_inst_ptr()->src_ptr(i)->is_memory_operand()) {
