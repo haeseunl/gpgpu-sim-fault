@@ -112,6 +112,7 @@ FILE* fault_injection_write=NULL;
 std::vector<fault*> fault_injection_list;
 std::vector<fault*> effective_fault_list;
 ///////////////////////////////////////////////////////////
+#include "vuln_printf.h"
 unsigned long long ullTotalVulnPeriod = 0;
 ///////////////////////////////////////////////////////////
 
@@ -1105,9 +1106,13 @@ void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst)
 unsigned long long shader_core_ctx::GetVulnData(void)
 {
 	unsigned long long partial = 0;
+	unsigned long long period = 0;
 	for (int i=0; i<(int)vecRegInfo.size(); i++) {
-		printf("[%s] vecRegInfo[%d].start: %llu | vecRegInfo[%d].end: %llu\n", vecRegInfo[i]->GetRegName().c_str(), i, vecRegInfo[i]->GetStart(), i, vecRegInfo[i]->GetEnd());
-		partial = partial + vecRegInfo[i]->GetVulnPeriod();
+		period = vecRegInfo[i]->GetVulnPeriod();
+//		printf("[%s] vecRegInfo[%d].start: %llu | vecRegInfo[%d].end: %llu | period: %llu\n"
+//				, vecRegInfo[i]->GetRegName().c_str(), i, vecRegInfo[i]->GetStart(), i, vecRegInfo[i]->GetEnd()
+//				, period);
+		partial = partial + period;
 	}
 	return partial;
 }
@@ -1125,6 +1130,12 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
 {
     set_max_cta(kernel);
 
+    unsigned long long ullVulnperiod = 0;
+    ullVulnperiod = this->GetVulnData();
+    ullTotalVulnPeriod = ullTotalVulnPeriod + ullVulnperiod;
+
+    printf("[Vuln estimation]: core:%3d, ullVulnperiod: %lld | ullTotalVulnPeriod: %llu\n", m_sid, ullVulnperiod, ullTotalVulnPeriod);
+
     // find a free CTA context 
     unsigned free_cta_hw_id=(unsigned)-1;
     for (unsigned i=0;i<kernel_max_cta_per_shader;i++ ) {
@@ -1138,7 +1149,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     // determine hardware threads and warps that will be used for this CTA
     int cta_size = kernel.threads_per_cta();
 
-    ISU_DBG("[issue_block2core] Thread block size: %d\n", cta_size);
+    //ISU_DBG("[issue_block2core] Thread block size: %d\n", cta_size);
 
     // hw warp id = hw thread id mod warp size, so we need to find a range 
     // of hardware thread ids corresponding to an integral number of hardware
@@ -1152,7 +1163,7 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     unsigned start_thread = free_cta_hw_id * padded_cta_size;
     unsigned end_thread  = start_thread +  cta_size;
 
-    ISU_DBG("[issue_block2core] start_thread: %d | end_thread: %d\n", start_thread, end_thread);
+    //ISU_DBG("[issue_block2core] start_thread: %d | end_thread: %d\n", start_thread, end_thread);
 
     // reset the microarchitecture state of the selected hardware thread and warp contexts
     reinit(start_thread, end_thread,false);
@@ -1183,13 +1194,8 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
     printf("GPGPU-Sim uArch: core:%3d, cta:%2u initialized @(%lld,%lld)\n", m_sid, free_cta_hw_id, gpu_sim_cycle, gpu_tot_sim_cycle );
 
 
-    unsigned long long ullVulnperiod = 0;
-    ullVulnperiod = this->GetVulnData();
+    // clear data
     this->ClrVulnData();
-
-    ullTotalVulnPeriod = ullTotalVulnPeriod + ullVulnperiod;
-
-    printf("[Vuln estimation]: core:%3d, ullVulnperiod: %lld | ullTotalVulnPeriod: %llu\n", m_sid, ullVulnperiod, ullTotalVulnPeriod);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -1848,7 +1854,7 @@ void GetSrcRegs(warp_inst_t *m_pipeline_reg, std::vector<std::string>& SrcRegs)
 	std::string op;
 
 
-    printf("inst has (%d) regs (%s)\n", nInfoNum, InstStr.c_str());
+	VULN_PRINT("inst has (%d) regs (%s)\n", nInfoNum, InstStr.c_str());
 
     if (nInfoNum>0) {
     	end = 0;
@@ -1860,13 +1866,13 @@ void GetSrcRegs(warp_inst_t *m_pipeline_reg, std::vector<std::string>& SrcRegs)
             	op = InstStr.substr(begin, end-begin);
             	if (op.size()>1) {
                 	SrcRegs.push_back(op);
-                	printf("(%d)th operand (%s)\n", i, op.c_str());
+                	VULN_PRINT("(%d)th operand (%s)\n", i, op.c_str());
             	}
         	}
         }
         int cnt=0;
         cnt = 0;
-        printf(" DstRegs.size(): %d\n", DstRegs.size());
+        VULN_PRINT(" DstRegs.size(): %d\n", DstRegs.size());
 
         if (m_pipeline_reg->op!=STORE_OP) {
             for (int r=0; r<DstRegs.size(); r++) {
@@ -1876,7 +1882,7 @@ void GetSrcRegs(warp_inst_t *m_pipeline_reg, std::vector<std::string>& SrcRegs)
 
 
         for (int i=0; i<SrcRegs.size(); i++) {
-        	printf("(%d)th src (%s)\n", i, SrcRegs[i].c_str());
+        	VULN_PRINT("(%d)th src (%s)\n", i, SrcRegs[i].c_str());
         }
     }
 

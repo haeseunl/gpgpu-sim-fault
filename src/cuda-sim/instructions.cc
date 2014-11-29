@@ -51,6 +51,7 @@ const char *g_opcode_string[NUM_OPCODES] = {
 #undef OP_DEF
 };
 
+#include "../gpgpu-sim/vuln_printf.h"
 void insert_bit_flip(ptx_reg_t& dest);
 
 void inst_not_implemented( const ptx_instruction * pI ) ;

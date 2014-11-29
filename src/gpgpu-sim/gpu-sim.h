@@ -549,7 +549,8 @@ public:
 	void SetEnd(unsigned long long data) { End=data;}
 	unsigned long long GetEnd(void) { return End;}
 
-	unsigned long long GetVulnPeriod(void) { assert(End-Start); return (End-Start);}
+	void SetVulnPeriod(void) { period = (End-Start);}
+	unsigned long long GetVulnPeriod(void) { return period; }
 
 	int IsMatch(std::string data, int tid) { return ((name.compare(data)) && (tid=nHwTid)); }
 
@@ -561,6 +562,7 @@ public:
 		nRegNum = 0;
 		Start = 0;
 		End = 0;
+		period = 0;
 		rdy = false;
 	}
 
@@ -574,6 +576,8 @@ private:
 
 	unsigned long long Start;
 	unsigned long long End;
+	unsigned long long period;
+
 
 	bool rdy;
 };

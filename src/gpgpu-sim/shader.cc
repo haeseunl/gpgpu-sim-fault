@@ -54,6 +54,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 #include "fault_injection.h"
+#include "vuln_printf.h"
 extern std::string gpu_comp_name[];
 /////////////////////////////////////////////////////////////////////////////
 
@@ -820,7 +821,7 @@ void scheduler_unit::cycle()
     	if (!m_shader->vecRegInfo[r]->IsRdy()) {
     		if (!m_scoreboard->checkCollisionReg(m_shader->vecRegInfo[r]->GetWid(), m_shader->vecRegInfo[r]->GetRegNum())) {
     			unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
-    			printf("[Scoreboard] Reg: %s | regnum: %d | wid: %d - is ready at %llu\n"
+    			VULN_PRINT("[Scoreboard] Reg: %s | regnum: %d | wid: %d - is ready at %llu\n"
     					, m_shader->vecRegInfo[r]->GetRegName().c_str(), m_shader->vecRegInfo[r]->GetRegNum()
     					, m_shader->vecRegInfo[r]->GetWid(), tot_clk);
     			m_shader->vecRegInfo[r]->SetRdy();
@@ -1620,7 +1621,7 @@ void pipelined_simd_unit::cycle()
 
         clsVulnInfo* info = NULL;
         if (m_pipeline_reg[0]->valid()) {
-        	printf("[pipelined_simd_unit::cycle()] last stage!! (wid: %d) %s\n", m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str());
+        	VULN_PRINT("[pipelined_simd_unit::cycle()] last stage!! (wid: %d) %s\n", m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str());
             std::vector<std::string> SrcRegs;
             GetSrcRegs(m_pipeline_reg[0], SrcRegs);
             unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
@@ -1628,10 +1629,11 @@ void pipelined_simd_unit::cycle()
             	info = this->m_core->GetReginfo(this->m_core->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), SrcRegs[i]);
             	if (info!=NULL) {
             		//assert(info->IsRdy()==true);
-            		printf("[pipelined_simd_unit::cycle()] Update info %s: [%llu - %llu] - %s\n"
+            		VULN_PRINT("[pipelined_simd_unit::cycle()] Update info %s: [%llu - %llu] - %s\n"
             				, SrcRegs[i].c_str(), info->GetStart(), tot_clk, m_pipeline_reg[0]->get_asm_str().c_str());
             		info->IsRdy();
             		info->SetEnd(tot_clk);
+            		info->SetVulnPeriod();
             	}
             }
         }
@@ -2012,7 +2014,7 @@ void ldst_unit::cycle()
 
 	   clsVulnInfo* info = NULL;
 	   if (m_dispatch_reg->valid()) {
-		   printf("[ldst_unit::cycle()] last stage!! %s\n", m_dispatch_reg->get_asm_str().c_str());
+		   VULN_PRINT("[ldst_unit::cycle()] last stage!! %s\n", m_dispatch_reg->get_asm_str().c_str());
 		   std::vector<std::string> SrcRegs;
 		   GetSrcRegs(m_dispatch_reg, SrcRegs);
 		   unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
@@ -2020,9 +2022,10 @@ void ldst_unit::cycle()
 			   info = this->m_core->GetReginfo(this->m_core->get_sid(), m_dispatch_reg->get_m_hw_warp_id(), SrcRegs[i]);
 			   if (info!=NULL) {
 				   //assert(info->IsRdy());
-				   printf("[ldst_unit::cycle()] Update info %s: [%llu - %llu] - %s\n"
+				   VULN_PRINT("[ldst_unit::cycle()] Update info %s: [%llu - %llu] - %s\n"
 						   , SrcRegs[i].c_str(), info->GetStart(), tot_clk, m_dispatch_reg->get_asm_str().c_str());
-				   info->SetEnd(tot_clk);
+				   info->SetEnd(tot_clk+3);
+				   info->SetVulnPeriod();
 			   }
 		   }
 	   }

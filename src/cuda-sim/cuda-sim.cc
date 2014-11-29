@@ -53,6 +53,8 @@
 /////////////////////////////////////////////////////
 #include "../gpgpu-sim/fault_injection.h"
 
+#include "../gpgpu-sim/vuln_printf.h"
+
 
 int gpgpu_ptx_instruction_classification;
 void ** g_inst_classification_stat = NULL;
@@ -1310,9 +1312,10 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
 	   info = shader->GetReginfo(shader->get_sid(), this->get_hw_wid(), predreg);
 	   if (info!=NULL) {
 		   //assert(info->IsRdy());
-		   printf("[ptx_exec_inst] Predicate reg info %s: [%llu - %llu]\n"
+		   VULN_PRINT("[ptx_exec_inst] Predicate reg info %s: [%llu - %llu]\n"
 				   , predreg.c_str(), info->GetStart(), tot_clk);
-		   info->SetEnd(tot_clk);
+		   info->SetEnd(tot_clk+1);
+		   info->SetVulnPeriod();
 	   }
 
 
@@ -1409,7 +1412,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
     		  newInfo->ClrRdy();
     		  shader->AddReginfo(this->get_hw_sid(), newInfo);
 
-    		  printf("[Vuln] Can't find. Create new reg info. (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
+    		  VULN_PRINT("[Vuln] Can't find. Create new reg info. (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
     				  ,this->get_hw_sid(), this->get_hw_wid(), newInfo->GetRegName().c_str(), newInfo->GetRegNum());
     	  }
     	  else {
@@ -1417,7 +1420,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
     		   //   				  ,this->get_hw_sid(), this->get_hw_wid(), DstRegs[i].c_str(),regnum);
     		  //printf("[Vuln] inst: %s\n", InstStr.c_str());
     		  if (newInfo->IsRdy()) {
-    			  printf("[Vuln] Second creation. (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
+    			  VULN_PRINT("[Vuln] Second creation. (Smid: %d | get_hw_wid: %d | name: %s | reg_id: %d)\n"
     			      ,this->get_hw_sid(), this->get_hw_wid(), DstRegs[i].c_str(),regnum);
         		  newInfo = new clsVulnInfo;
         		  newInfo->SetWid(this->get_hw_wid());
