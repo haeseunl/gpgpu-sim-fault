@@ -104,8 +104,8 @@ public:
 		int ret = 0;
 
 		if (this->nSM==sm_id && strcmp(this->inst_string.c_str(), asm_str.c_str())==0) {
-//			printf("this->inst_string: %s\n", this->inst_string.c_str());
-//			printf("asm_str          : %s\n", asm_str.c_str());
+			printf("this->inst_string: %s\n", this->inst_string.c_str());
+			printf("asm_str          : %s\n", asm_str.c_str());
 			if (this->cta_id.x==cta_id_in.x && this->cta_id.y==cta_id_in.y && this->cta_id.z==cta_id_in.z) {
 				if (this->thd_id.x==thd_id_in.x && this->thd_id.y==thd_id_in.y && this->thd_id.z==thd_id_in.z) {
 					ret = 1;

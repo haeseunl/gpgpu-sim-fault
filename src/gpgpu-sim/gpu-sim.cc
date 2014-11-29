@@ -535,9 +535,9 @@ bool gpgpu_sim::stuck_by_fault_injection(void) const
 	unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 	if (fault_injection_phase==APPLY_FAULT && fault_injection_clk_limit<tot_clk && fault_injection_clk_limit>0) {
 		printf("[Fault injection] Application is stuck... stop the application.\n");
-		return false;
+		return true;
 	}
-	return true;
+	return false;
 }
 
 kernel_info_t *gpgpu_sim::select_kernel()
@@ -716,6 +716,9 @@ bool gpgpu_sim::active()
         return true;
     if( get_more_cta_left() )
         return true;
+    if( stuck_by_fault_injection() )
+        return false;
+
     return false;
 }
 
@@ -1088,6 +1091,14 @@ void shader_core_ctx::mem_instruction_stats(const warp_inst_t &inst)
  * @param kernel 
  *    object that tells us which kernel to ask for a CTA from 
  */
+// TODO:
+#ifndef ISU
+#define ISU
+#define ISU_DBG(...) printf(__VA_ARGS__);
+#else
+#define ISU_DBG(...)
+#endif
+
 
 void shader_core_ctx::issue_block2core( kernel_info_t &kernel ) 
 {
@@ -1105,6 +1116,8 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
 
     // determine hardware threads and warps that will be used for this CTA
     int cta_size = kernel.threads_per_cta();
+
+    ISU_DBG("[issue_block2core] Thread block size: %d\n", cta_size);
 
     // hw warp id = hw thread id mod warp size, so we need to find a range 
     // of hardware thread ids corresponding to an integral number of hardware
