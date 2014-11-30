@@ -1081,6 +1081,17 @@ public:
     	return ret;
     }
 
+    int get_out_operant_num(void) {
+    	int ret = 0;
+    	if (this->out[0]>0) { ret++; }
+    	if (this->out[1]>0) { ret++; }
+    	if (this->out[2]>0) { ret++; }
+    	if (this->out[3]>0) { ret++; }
+
+    	return ret;
+    }
+
+
     unsigned get_m_warp_id(void) { return m_warp_id; }
     unsigned int get_scalar_thread_size(void) { return m_per_scalar_thread.size(); }
     ////////////////////////////////////

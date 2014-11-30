@@ -706,7 +706,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 	//inst.get_thd_info()
     // get instruction info
 
-    warp_vuln_info* vuln_warp = this->get_exist_warp(inst.get_m_hw_warp_id());
+    warp_vuln_info* vuln_warp = this->get_exist_warp(inst.get_m_warp_id());
 
     if (vuln_warp == NULL) {
     	vuln_warp = new warp_vuln_info;
@@ -724,7 +724,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
     else {
     	//printf("Use existing warp info\n");
     }
-
+    //inst.print_detail_info();
     std::string reg_name;
     int 		reg_id;
     reg_info* dst_info;
@@ -732,13 +732,6 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 
 
     if (inst.get_num_operands()>0) {
-//		printf( "[SM:%2d - func_exec_inst] inst: [%s] get_num_operands(): %d (clk: %u)\n"
-//				, this->get_sid(), inst.get_asm_str().c_str(), inst.get_num_operands(), tot_clk);
-
-//    	if ( (inst.get_inst_ptr()->op == LOAD_OP) || (inst.get_inst_ptr()->op == STORE_OP) || (inst.get_inst_ptr()->op == MEMORY_BARRIER_OP) ) {
-//
-//    	}
-
     	// destination
     	operand_info* dst = inst.get_inst_ptr()->dst_ptr();
     	if (!dst->is_vector() && dst->is_reg()) {
@@ -779,6 +772,7 @@ void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
     	}
     }
 
+    // TODO:
     // Now deal with predicat instruction.
     reg_info* vuln_reg = NULL;
     int reg_ref_cnt = 0;
@@ -1432,67 +1426,44 @@ void shader_core_ctx::execute()
         	    	}
 
         	    	for (int i=0; i<in_operand_num; i++) {
-        	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
-        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), last_stage->get_inst_ptr()->src_ptr(i)->is_reg());
-        	    		vuln_reg = NULL;
-        	    		if (last_stage->get_inst_ptr()->src_ptr(i)->is_reg()) {
-        	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
-            	    		reg_id = last_stage->get_inst_ptr()->src_ptr(i)->reg_num();
-            	    		vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-//            	    		if ((vuln_reg==NULL)) {
-//            	    			printf("[FATAL]th reg: %s (id: %d) not found\n", reg_name.c_str(), reg_id);
-//            	    			assert(0) ;
-//            	    		}
 
-        	    		}
-        	    		else if (last_stage->get_inst_ptr()->src_ptr(i)->is_memory_operand()) {
-        	    			reg_name = last_stage->get_inst_ptr()->src_ptr(i)->name();
-        	    			vuln_reg = warp_info->get_reg_info(reg_name);
-        	    			//printf("[%d]th src[%d]->get_symbol()->name(): %s\n", i, i, reg_name.c_str());
-        	    		}
-
-        	    		if (vuln_reg!=NULL) {
-        	    			reg_ref_cnt = vuln_reg->get_ref_cnt();
-            	    		assert (vuln_reg->get_avail_flag(reg_ref_cnt));
-
-
-            	    		if (reg_id<0) { reg_id = vuln_reg->reg_id; }
-
-            	    		if (last_stage->get_inst_ptr()->has_memory_write() || last_stage->get_inst_ptr()->has_memory_read()) {
-            	    			tot_clk = tot_clk+2;
-            	    		}
-            	    		vuln_reg->end[reg_ref_cnt] = tot_clk;
-
-            	    		PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
-            	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], last_stage->active_count());
-
-//            	    		// This handles the recursive case
-//            	    		if (vuln_reg->get_cnt()>reg_ref_cnt && last_stage->out[0] == vuln_reg->reg_id ) {
-//            	    			vuln_reg->end[reg_ref_cnt] = tot_clk;
-//            	    			vuln_reg->inc_ref_cnt();
-//            	    			printf("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
-//            	    					, this->get_sid(), last_stage->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
-//
-//            	    			vuln_reg->start[reg_ref_cnt+1] = tot_clk;
-//            	    			vuln_reg->end[reg_ref_cnt+1] = tot_clk;
-//            	    		}
-
-        	    		}
         	    	}
         	    }
 
         	    // After handle all the other case, check weather this is a next time.
         	    if (!last_stage->get_inst_ptr()->has_memory_write() && last_stage->get_num_operands()>0) {
        	    	//if (last_stage->get_inst_ptr()->dst_ptr()->is_reg() && last_stage->get_inst_ptr()->has_memory_write()==false) {
-        	    	PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
+        	    	PRINT("[SM:%2d (wid: %2d) - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
 	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk);
 
-        	    	if (last_stage->get_inst_ptr()->dst_ptr()->is_reg()) {
+        	    	if (last_stage->get_inst_ptr()->dst().is_reg()) {
+
+
+
                 	    reg_name = last_stage->get_inst_ptr()->dst_ptr()->name();
                 	    reg_id = last_stage->get_inst_ptr()->dst_ptr()->reg_num();
 
+
+
                 	    dst_vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-                	    assert(dst_vuln_reg!=NULL);
+//                	    if (dst_vuln_reg==NULL) {
+//                	    	reg_info* dst_info = new reg_info;
+//                			dst_info->name = reg_name;
+//                			//dst_info->asm_string = last_stage->get_asm_str();
+//                			dst_info->reg_id = reg_id;
+////                			dst_info->add_avail_flag();
+////                			dst_info->set_avail_flag(0, true);
+////                			dst_info->set_ref_cnt(0);
+////                			dst_info->start.push_back(tot_clk);
+////                			dst_info->end.push_back(tot_clk);
+////                			warp_info->vuln_regs.push_back(dst_info);
+//
+//                			printf( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
+//                	    			, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
+//
+//                	    	//assert(0);
+//                	    }
+
 
                 	    reg_ref_cnt = dst_vuln_reg->get_ref_cnt();
                 	    if (dst_vuln_reg->get_cnt()>reg_ref_cnt ) {
@@ -1504,6 +1475,7 @@ void shader_core_ctx::execute()
         	    			dst_vuln_reg->end[reg_ref_cnt+1] = tot_clk;
                 	    }
         	    	}
+
 
         	    }
 
@@ -1911,6 +1883,64 @@ void pipelined_simd_unit::cycle()
 	//printf("pipelined_simd_unit::cycle()");
     if( !m_pipeline_reg[0]->empty() ){
         m_result_port->move_in(m_pipeline_reg[0]);
+
+        // Here is the last stage.
+        unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+
+        if (m_pipeline_reg[0]->valid()) {
+            warp_vuln_info* warp_info = this->m_core->get_exist_warp(m_pipeline_reg[0]->get_m_warp_id());
+            int in_operand_num = m_pipeline_reg[0]->get_in_operand_num();
+            reg_info* vuln_reg;
+            reg_info* dst_vuln_reg;
+
+            PRINT("[SM:%2d - Last stage] insn: [%s] (clk: %u | in operands: %d)\n", this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), tot_clk, in_operand_num);
+
+            assert (warp_info!=NULL);
+            std::string reg_name;
+            int reg_id = -1;
+            int reg_ref_cnt;
+
+            for (int i=0; i<in_operand_num; i++) {
+	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
+	    				, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str()
+	    				, m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg());
+	    		vuln_reg = NULL;
+	    		if (m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg()) {
+	    			reg_name = m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->name();
+    	    		reg_id = m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->reg_num();
+    	    		vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
+//    	    		if ((vuln_reg==NULL)) {
+//    	    			printf("[FATAL]th reg: %s (id: %d) not found\n", reg_name.c_str(), reg_id);
+//    	    			assert(0) ;
+//    	    		}
+
+	    		}
+
+
+	    		if (vuln_reg!=NULL) {
+	    			reg_ref_cnt = vuln_reg->get_ref_cnt();
+    	    		assert (vuln_reg->get_avail_flag(reg_ref_cnt));
+
+    	    		if (reg_id<0) { reg_id = vuln_reg->reg_id; }
+    	    		vuln_reg->end[reg_ref_cnt] = tot_clk;
+
+    	    		PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+    	    				, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], m_pipeline_reg[0]->active_count());
+
+    	    		// This handles the recursive case
+    	    		if (vuln_reg->get_cnt()>reg_ref_cnt && m_pipeline_reg[0]->out[0] == vuln_reg->reg_id ) {
+    	    			vuln_reg->end[reg_ref_cnt] = tot_clk;
+    	    			vuln_reg->inc_ref_cnt();
+    	    			PRINT("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
+    	    					, this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
+
+    	    			vuln_reg->start[reg_ref_cnt+1] = tot_clk;
+    	    			vuln_reg->end[reg_ref_cnt+1] = tot_clk;
+    	    		}
+	    		}
+            }
+        }
+
     }
     for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ )
         move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage+1]);
@@ -2307,127 +2337,222 @@ void ldst_unit::cycle()
 	this->print(stdout);
 	printf("=======================================================================\n\n");
 #endif
+	unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+	if (!m_dispatch_reg->empty()) {
+		// both input and output need to considered.
 
-   writeback();
-   m_operand_collector->step();
-   for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ ) 
-       if( m_pipeline_reg[stage]->empty() && !m_pipeline_reg[stage+1]->empty() )
-            move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage+1]);
+		if (m_dispatch_reg->valid()) {
+			warp_vuln_info* warp_info = this->m_core->get_exist_warp(m_dispatch_reg->get_m_warp_id());
+			int in_operand_num = m_dispatch_reg->get_in_operand_num();
+			int out_operand_num = m_dispatch_reg->get_out_operant_num();
+			reg_info* vuln_reg;
+			reg_info* dst_vuln_reg;
 
-//   if( !m_dispatch_reg->empty() ){
-//	   printf("[Vulnerability::ldst_unit::cycle()] m_dispatch_reg is not empty..(cycle: %d)\n", m_pipeline_depth);
-//	   //ret = m_pipeline_reg[0];
-//   }
+			PRINT("[SM:%2d - Last stage] insn: [%s] (clk: %u | in operands: %d | out operands: %d)\n"
+					, this->m_core->get_sid(), m_dispatch_reg->get_asm_str().c_str(), tot_clk, in_operand_num, out_operand_num);
 
-   if( !m_response_fifo.empty() ) {
-       mem_fetch *mf = m_response_fifo.front();
-       if (mf->istexture()) {
-           if (m_L1T->fill_port_free()) {
-               m_L1T->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
-               m_response_fifo.pop_front(); 
-           }
-       } else if (mf->isconst())  {
-           if (m_L1C->fill_port_free()) {
-               mf->set_status(IN_SHADER_FETCHED,gpu_sim_cycle+gpu_tot_sim_cycle);
-               m_L1C->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
-               m_response_fifo.pop_front(); 
-           }
-       } else {
-    	   if( mf->get_type() == WRITE_ACK || ( m_config->gpgpu_perfect_mem && mf->get_is_write() )) {
-               m_core->store_ack(mf);
-               m_response_fifo.pop_front();
-               delete mf;
-           } else {
-               assert( !mf->get_is_write() ); // L1 cache is write evict, allocate line on load miss only
+			assert (warp_info!=NULL);
+			std::string reg_name;
+			int reg_id = -1;
+			int reg_ref_cnt;
 
-               bool bypassL1D = false; 
-               if ( CACHE_GLOBAL == mf->get_inst().cache_op || (m_L1D == NULL) ) {
-                   bypassL1D = true; 
-               } else if (mf->get_access_type() == GLOBAL_ACC_R || mf->get_access_type() == GLOBAL_ACC_W) { // global memory access 
-                   if (m_core->get_config()->gmem_skip_L1D)
-                       bypassL1D = true; 
-               }
-               if( bypassL1D ) {
-                   if ( m_next_global == NULL ) {
-                       mf->set_status(IN_SHADER_FETCHED,gpu_sim_cycle+gpu_tot_sim_cycle);
-                       m_response_fifo.pop_front();
-                       m_next_global = mf;
-                   }
-               } else {
-                   if (m_L1D->fill_port_free()) {
-                       m_L1D->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
-                       m_response_fifo.pop_front();
-                   }
-               }
-           }
-       }
-   }
+			if(m_dispatch_reg->is_load()) {
+				for (int i=0; i<in_operand_num; i++) {
+					PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
+							, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str()
+							, m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg());
+					if (m_dispatch_reg->get_inst_ptr()->src_ptr(i)->is_reg()) {
+						reg_name = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->name();
+						reg_id = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->reg_num();
+						vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
+					}
 
-   m_L1T->cycle();
-   m_L1C->cycle();
-   if( m_L1D ) m_L1D->cycle();
+					if (vuln_reg!=NULL) {
+						reg_ref_cnt = vuln_reg->get_ref_cnt();
+						assert (vuln_reg->get_avail_flag(reg_ref_cnt));
 
-   warp_inst_t &pipe_reg = *m_dispatch_reg;
-   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
-   mem_stage_access_type type;
-   bool done = true;
-   done &= shared_cycle(pipe_reg, rc_fail, type);
-   done &= constant_cycle(pipe_reg, rc_fail, type);
-   done &= texture_cycle(pipe_reg, rc_fail, type);
-   done &= memory_cycle(pipe_reg, rc_fail, type);
-   m_mem_rc = rc_fail;
+						if (reg_id<0) { reg_id = vuln_reg->reg_id; }
+						vuln_reg->end[reg_ref_cnt] = tot_clk+2;
 
-   if (!done) { // log stall types and return
-      assert(rc_fail != NO_RC_FAIL);
-      m_stats->gpgpu_n_stall_shd_mem++;
-      m_stats->gpu_stall_shd_mem_breakdown[type][rc_fail]++;
-      return;
-   }
+						PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+								, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], m_pipeline_reg[0]->active_count());
 
-   if( !pipe_reg.empty() ) {
-       unsigned warp_id = pipe_reg.warp_id();
-       if( pipe_reg.is_load() ) {
-           if( pipe_reg.space.get_type() == shared_space ) {
-               if( m_pipeline_reg[2]->empty() ) {
-                   // new shared memory request
-                   move_warp(m_pipeline_reg[2],m_dispatch_reg);
-                   m_dispatch_reg->clear();
-               }
-           } else {
-               //if( pipe_reg.active_count() > 0 ) {
-               //    if( !m_operand_collector->writeback(pipe_reg) ) 
-               //        return;
-               //} 
+						// This handles the recursive case
+						if (vuln_reg->get_cnt()>reg_ref_cnt && m_pipeline_reg[0]->out[0] == vuln_reg->reg_id ) {
+							vuln_reg->end[reg_ref_cnt] = tot_clk+2;
+							vuln_reg->inc_ref_cnt();
+							printf("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
+									, this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
 
-               bool pending_requests=false;
-               for( unsigned r=0; r<4; r++ ) {
-                   unsigned reg_id = pipe_reg.out[r];
-                   if( reg_id > 0 ) {
-                       if( m_pending_writes[warp_id].find(reg_id) != m_pending_writes[warp_id].end() ) {
-                           if ( m_pending_writes[warp_id][reg_id] > 0 ) {
-                               pending_requests=true;
-                               break;
-                           } else {
-                               // this instruction is done already
-                               m_pending_writes[warp_id].erase(reg_id); 
-                           }
-                       }
-                   }
-               }
-               if( !pending_requests ) {
-                   m_core->warp_inst_complete(*m_dispatch_reg);
-                   m_scoreboard->releaseRegisters(m_dispatch_reg);
-               }
-               m_core->dec_inst_in_pipeline(warp_id);
-               m_dispatch_reg->clear();
-           }
-       } else {
-           // stores exit pipeline here
-           m_core->dec_inst_in_pipeline(warp_id);
-           m_core->warp_inst_complete(*m_dispatch_reg);
-           m_dispatch_reg->clear();
-       }
-   }
+							vuln_reg->start[reg_ref_cnt+1] = tot_clk+2;
+							vuln_reg->end[reg_ref_cnt+1] = tot_clk+2;
+						}
+					}
+				}
+			}
+			if(m_dispatch_reg->is_store()) {
+				for (int i=0; i<out_operand_num; i++) {
+					PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
+							, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str()
+							, m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg());
+					if (m_dispatch_reg->get_inst_ptr()->src_ptr(i)->is_reg()) {
+						reg_name = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->name();
+						reg_id = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->reg_num();
+						vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
+					}
+
+					if (vuln_reg!=NULL) {
+						reg_ref_cnt = vuln_reg->get_ref_cnt();
+						assert (vuln_reg->get_avail_flag(reg_ref_cnt));
+
+						if (reg_id<0) { reg_id = vuln_reg->reg_id; }
+						vuln_reg->end[reg_ref_cnt] = tot_clk+2;
+
+						PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
+								, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], m_pipeline_reg[0]->active_count());
+
+						// This handles the recursive case
+						if (vuln_reg->get_cnt()>reg_ref_cnt && m_pipeline_reg[0]->out[0] == vuln_reg->reg_id ) {
+							vuln_reg->end[reg_ref_cnt] = tot_clk+2;
+							vuln_reg->inc_ref_cnt();
+							printf("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
+									, this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
+
+							vuln_reg->start[reg_ref_cnt+1] = tot_clk+2;
+							vuln_reg->end[reg_ref_cnt+1] = tot_clk+2;
+						}
+					}
+				}
+			}
+		}
+	}
+
+
+
+
+
+
+
+		writeback();
+	m_operand_collector->step();
+	for( unsigned stage=0; (stage+1)<m_pipeline_depth; stage++ )
+		if( m_pipeline_reg[stage]->empty() && !m_pipeline_reg[stage+1]->empty() )
+			move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage+1]);
+
+	//   if( !m_dispatch_reg->empty() ){
+	//	   printf("[Vulnerability::ldst_unit::cycle()] m_dispatch_reg is not empty..(cycle: %d)\n", m_pipeline_depth);
+	//	   //ret = m_pipeline_reg[0];
+	//   }
+
+	if( !m_response_fifo.empty() ) {
+		mem_fetch *mf = m_response_fifo.front();
+		if (mf->istexture()) {
+			if (m_L1T->fill_port_free()) {
+				m_L1T->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
+				m_response_fifo.pop_front();
+			}
+		} else if (mf->isconst())  {
+			if (m_L1C->fill_port_free()) {
+				mf->set_status(IN_SHADER_FETCHED,gpu_sim_cycle+gpu_tot_sim_cycle);
+				m_L1C->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
+				m_response_fifo.pop_front();
+			}
+		} else {
+			if( mf->get_type() == WRITE_ACK || ( m_config->gpgpu_perfect_mem && mf->get_is_write() )) {
+				m_core->store_ack(mf);
+				m_response_fifo.pop_front();
+				delete mf;
+			} else {
+				assert( !mf->get_is_write() ); // L1 cache is write evict, allocate line on load miss only
+
+				bool bypassL1D = false;
+				if ( CACHE_GLOBAL == mf->get_inst().cache_op || (m_L1D == NULL) ) {
+					bypassL1D = true;
+				} else if (mf->get_access_type() == GLOBAL_ACC_R || mf->get_access_type() == GLOBAL_ACC_W) { // global memory access
+					if (m_core->get_config()->gmem_skip_L1D)
+						bypassL1D = true;
+				}
+				if( bypassL1D ) {
+					if ( m_next_global == NULL ) {
+						mf->set_status(IN_SHADER_FETCHED,gpu_sim_cycle+gpu_tot_sim_cycle);
+						m_response_fifo.pop_front();
+						m_next_global = mf;
+					}
+				} else {
+					if (m_L1D->fill_port_free()) {
+						m_L1D->fill(mf,gpu_sim_cycle+gpu_tot_sim_cycle);
+						m_response_fifo.pop_front();
+					}
+				}
+			}
+		}
+	}
+
+	m_L1T->cycle();
+	m_L1C->cycle();
+	if( m_L1D ) m_L1D->cycle();
+
+	warp_inst_t &pipe_reg = *m_dispatch_reg;
+	enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
+	mem_stage_access_type type;
+	bool done = true;
+	done &= shared_cycle(pipe_reg, rc_fail, type);
+	done &= constant_cycle(pipe_reg, rc_fail, type);
+	done &= texture_cycle(pipe_reg, rc_fail, type);
+	done &= memory_cycle(pipe_reg, rc_fail, type);
+	m_mem_rc = rc_fail;
+
+	if (!done) { // log stall types and return
+		assert(rc_fail != NO_RC_FAIL);
+		m_stats->gpgpu_n_stall_shd_mem++;
+		m_stats->gpu_stall_shd_mem_breakdown[type][rc_fail]++;
+		return;
+	}
+
+	if( !pipe_reg.empty() ) {
+		unsigned warp_id = pipe_reg.warp_id();
+		if( pipe_reg.is_load() ) {
+			if( pipe_reg.space.get_type() == shared_space ) {
+				if( m_pipeline_reg[2]->empty() ) {
+					// new shared memory request
+					move_warp(m_pipeline_reg[2],m_dispatch_reg);
+					m_dispatch_reg->clear();
+				}
+			} else {
+				//if( pipe_reg.active_count() > 0 ) {
+				//    if( !m_operand_collector->writeback(pipe_reg) )
+				//        return;
+				//}
+
+				bool pending_requests=false;
+				for( unsigned r=0; r<4; r++ ) {
+					unsigned reg_id = pipe_reg.out[r];
+					if( reg_id > 0 ) {
+						if( m_pending_writes[warp_id].find(reg_id) != m_pending_writes[warp_id].end() ) {
+							if ( m_pending_writes[warp_id][reg_id] > 0 ) {
+								pending_requests=true;
+								break;
+							} else {
+								// this instruction is done already
+								m_pending_writes[warp_id].erase(reg_id);
+							}
+						}
+					}
+				}
+				if( !pending_requests ) {
+					m_core->warp_inst_complete(*m_dispatch_reg);
+					m_scoreboard->releaseRegisters(m_dispatch_reg);
+				}
+				m_core->dec_inst_in_pipeline(warp_id);
+				m_dispatch_reg->clear();
+			}
+		} else {
+			// stores exit pipeline here
+			m_core->dec_inst_in_pipeline(warp_id);
+			m_core->warp_inst_complete(*m_dispatch_reg);
+			m_dispatch_reg->clear();
+		}
+	}
 }
 
 void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )

@@ -1959,6 +1959,7 @@ private:
     // run on this shader, where the warp_id is the static warp slot.
     unsigned m_dynamic_warp_id;
 
+public:
     // TODO:
     /////////////////////////////////////////////////////////////
     std::vector<warp_vuln_info*> vuln_warp_info;
@@ -1973,7 +1974,6 @@ private:
     	}
     	return ret;
     }
-public:
     void print_vuln_result(void);
     /////////////////////////////////////////////////////////////
 
