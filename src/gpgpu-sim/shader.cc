@@ -1878,6 +1878,7 @@ pipelined_simd_unit::pipelined_simd_unit( register_set* result_port, const shade
     m_core=core;
 }
 
+// Bug fixed.
 void pipelined_simd_unit::cycle()
 {
 	//printf("pipelined_simd_unit::cycle()");
