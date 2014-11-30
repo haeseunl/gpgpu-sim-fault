@@ -81,7 +81,7 @@ public:
 	unsigned int reg_id;
 	int ref_cnt;
 
-	std::vector<bool> available_flag;
+	std::vector<int> available_flag;
 	std::vector<unsigned long long> start;
 	std::vector<unsigned long long> end;
 
@@ -103,9 +103,9 @@ public:
 		}
 	}
 
-	void add_avail_flag(void) { available_flag.push_back(false); }
+	void add_avail_flag(void) { available_flag.push_back(0); }
 	bool get_avail_flag(int i) { assert(i<available_flag.size()); return available_flag[i]; }
-	void set_avail_flag(int i, bool flag) { assert(i<available_flag.size()); available_flag[i] = flag; }
+	void set_avail_flag(int i, int flag) { assert(i<available_flag.size()); available_flag[i] = flag; }
 	int get_cnt(void) { return available_flag.size()-1; }
 	void inc_ref_cnt(void) { ref_cnt++; }
 	void set_ref_cnt(int n) { ref_cnt = n; }

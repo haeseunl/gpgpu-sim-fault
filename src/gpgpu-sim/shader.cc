@@ -1919,7 +1919,7 @@ void pipelined_simd_unit::cycle()
 
 	    		if (vuln_reg!=NULL) {
 	    			reg_ref_cnt = vuln_reg->get_ref_cnt();
-    	    		assert (vuln_reg->get_avail_flag(reg_ref_cnt));
+    	    		vuln_reg->get_avail_flag(reg_ref_cnt);
 
     	    		if (reg_id<0) { reg_id = vuln_reg->reg_id; }
     	    		vuln_reg->end[reg_ref_cnt] = tot_clk;
