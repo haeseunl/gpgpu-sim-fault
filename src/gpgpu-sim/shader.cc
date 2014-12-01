@@ -1729,11 +1729,11 @@ int check_inst_detail(warp_inst_t* m_pipeline_reg, int m_fu_n, int faulty_comp)
 
 
 	if (0<=m_fu_n && m_fu_n<2) {
-		if (faulty_comp == FLOAT_ALU && m_pipeline_reg->oprnd_type == FP_OP) {
+		if ((faulty_comp == FLOAT_ALU && m_pipeline_reg->oprnd_type == FP_OP) || faulty_comp==REGISTER_FILE) {
 			ret = 1;
 			//printf("[Fault Injection] FLOAT_ALU match!!\n");
 		}
-		if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP))
+		if ((faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP)) || faulty_comp==REGISTER_FILE)
 		//if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP || m_pipeline_reg->oprnd_type==UN_OP))
 		{
 			ret = 1;
@@ -1741,13 +1741,13 @@ int check_inst_detail(warp_inst_t* m_pipeline_reg, int m_fu_n, int faulty_comp)
 		}
 	}
 	else if (m_fu_n==2) {
-		if (faulty_comp == SFU_ALU && m_pipeline_reg->op_pipe == SFU__OP) {
+		if ((faulty_comp == SFU_ALU && m_pipeline_reg->op_pipe == SFU__OP) || faulty_comp==REGISTER_FILE) {
 			ret = 1;
 			//printf("[Fault Injection] SFU_ALU match!!\n");
 		}
 	}
 	else if (m_fu_n==3) {
-		if (faulty_comp == LDSTR_UNIT && (m_pipeline_reg->op==LOAD_OP || m_pipeline_reg->op==STORE_OP)) {
+		if ((faulty_comp == LDSTR_UNIT && (m_pipeline_reg->op==LOAD_OP || m_pipeline_reg->op==STORE_OP)) || faulty_comp==REGISTER_FILE) {
 			ret = 1;
 			//printf("[Fault Injection] LDSTR_UNIT match!!\n");
 		}

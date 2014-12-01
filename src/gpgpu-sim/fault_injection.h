@@ -9,8 +9,8 @@
 #define FAULT_INJECTION_H_
 
 #ifdef ENABLE_FAULT_TYPE
-#define GPU_NUM_OF_COMP	 11
-#define GPU_NUM_ACTIVE_COMP	 4
+#define GPU_NUM_OF_COMP	 12
+#define GPU_NUM_ACTIVE_COMP	 5
 
 #define INJECT_FAULT	1
 #define APPLY_FAULT		2
@@ -27,10 +27,11 @@ std::string gpu_comp_name[] = {
 	"FLOAT_ALU",
 	"SFU_ALU",
 	"RESULTS_BUS",
+	"REGISTER_FILE",
 	"TOT_GPU",
 	"NONE"
 };
-float gpu_comp_area[] = { 44.0291, 0.736773, 7.16208, 1.09266, 34.8379, 0.0153505, 2.52056, 29.4463, 0.833078, 0.0984577, 743.669 };
+float gpu_comp_area[] = { 44.0291, 0.736773, 7.16208, 1.09266, 34.8379, 0.0153505, 2.52056, 29.4463, 0.833078, 0.0984577, 7.10894, 743.669 };
 float gpu_comp_num[] = { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 1 };
 #endif
 
@@ -45,8 +46,9 @@ enum _gpu_comp_list {
 	FLOAT_ALU=7,
 	SFU_ALU=8,
 	RESULTS_BUS=9,
-	TOT_GPU=10,
-	NONE=11,
+	REGISTER_FILE=10,
+	TOT_GPU=11,
+	NONE=12,
 };
 typedef _gpu_comp_list gpu_comp_list;
 
