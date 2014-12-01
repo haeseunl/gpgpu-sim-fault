@@ -3892,7 +3892,7 @@ void shader_core_ctx::ClrVulnInfo(unsigned int cta_num)
 
 
 
-#define PRINT_VULN_CALC
+#define PRINT_VULN_CALC_
 #ifdef PRINT_VULN_CALC
 #define VULN_CALC(...) printf(__VA_ARGS__)
 #else
