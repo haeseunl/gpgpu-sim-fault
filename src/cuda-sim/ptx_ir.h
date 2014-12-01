@@ -923,15 +923,16 @@ public:
       return &(m_operands[3]);
    }
 
-   operand_info* src_ptr(int n)
-   {
-	  if (m_operands.size() <= (n+1)) {
-		  printf("m_operands.size(): %d | n+1: %d\n", m_operands.size(), n+1);
-
-	  }
-      assert( m_operands.size() > (n+1) );
-      return &(m_operands[n+1]);
-   }
+   operand_info* src_ptr(int n);
+//   operand_info* src_ptr(int n)
+//   {
+//	  if (m_operands.size() <= (n+1)) {
+//		  printf("m_operands.size(): %d | n+1: %d\n", m_operands.size(), n+1);
+//
+//	  }
+//      assert( m_operands.size() > (n+1) );
+//      return &(m_operands[n+1]);
+//   }
 
 
 

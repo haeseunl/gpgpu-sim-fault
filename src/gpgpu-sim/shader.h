@@ -76,17 +76,25 @@
 class reg_info
 {
 public:
+
+	reg_info() {
+		bAvail=false;
+	}
+
 	std::string name;
 	std::string asm_string;
 	unsigned int reg_id;
-	int ref_cnt;
 
-	std::vector<int> available_flag;
-	std::vector<unsigned long long> start;
-	std::vector<unsigned long long> end;
+//	std::vector<int> available_flag;
+//	std::vector<unsigned long long> start;
+//	std::vector<unsigned long long> end;
 
-	bool is_same(std::string name_in, int id){
-		if ((name.compare(name_in)==0) && (reg_id==id)) {
+	bool bAvail;
+	unsigned long long start;
+	unsigned long long end;
+
+	bool is_same(std::string& name_in, int id){
+		if ((this->name.compare(name_in)==0) && (reg_id==id)) {
 			return true;
 		}
 		else {
@@ -95,7 +103,7 @@ public:
 	}
 
 	bool is_same(std::string name_in){
-		if (name.compare(name_in)==0) {
+		if (this->name.compare(name_in)==0) {
 			return true;
 		}
 		else {
@@ -103,13 +111,10 @@ public:
 		}
 	}
 
-	void add_avail_flag(void) { available_flag.push_back(0); }
-	bool get_avail_flag(int i) { assert(i<available_flag.size()); return available_flag[i]; }
-	void set_avail_flag(int i, int flag) { assert(i<available_flag.size()); available_flag[i] = flag; }
-	int get_cnt(void) { return available_flag.size()-1; }
-	void inc_ref_cnt(void) { ref_cnt++; }
-	void set_ref_cnt(int n) { ref_cnt = n; }
-	int get_ref_cnt(void) { return ref_cnt; }
+	bool get_avail_flag(void);
+	void set_avail_flag(void);
+	void clr_avail_flag(void);
+
 };
 
 class warp_vuln_info
@@ -154,31 +159,19 @@ public:
 				&& (tid.x==thd.x) && (tid.y==thd.y) && (tid.z==thd.z));
 	}
 
-	reg_info* get_reg_info(std::string name, int reg_id) {
-		reg_info* ret = NULL;
 
 
 
-		for (unsigned int i=0; i<vuln_regs.size(); i++) {
-
-			if (vuln_regs[i]->is_same(name, reg_id)) {
-				ret = vuln_regs[i];
-				break;
-			}
-		}
-		return ret;
-	}
-
-	reg_info* get_reg_info(std::string name) {
-		reg_info* ret = NULL;
-
-		for (unsigned int i=0; i<vuln_regs.size(); i++) {
-			if (vuln_regs[i]->is_same(name)) {
-				ret = vuln_regs[i];
-			}
-		}
-		return ret;
-	}
+//	reg_info* get_reg_info(std::string name) {
+//		reg_info* ret = NULL;
+//
+//		for (unsigned int i=0; i<vuln_regs.size(); i++) {
+//			if (vuln_regs[i]->is_same(name)) {
+//				ret = vuln_regs[i];
+//			}
+//		}
+//		return ret;
+//	}
 
 };
 ////////////////////////////////////////////////////////////////////////////////
@@ -1963,7 +1956,6 @@ public:
     // TODO:
     /////////////////////////////////////////////////////////////
     std::vector<warp_vuln_info*> vuln_warp_info;
-    warp_vuln_info* get_exist_warp(warp_inst_t* inst);
     warp_vuln_info* get_exist_warp(int wid);
     warp_vuln_info* get_warp_data(int wid) {
     	warp_vuln_info* ret = NULL;
@@ -1975,6 +1967,10 @@ public:
     	return ret;
     }
     void print_vuln_result(void);
+    unsigned long long GetVulnResult(void);
+    void FindNCreateVulnInfo( warp_inst_t &inst );
+    void UpdateSrcVulnInfo( warp_inst_t* inst );
+    reg_info* get_reg_info(warp_vuln_info* target, std::string name, int reg_num);
     /////////////////////////////////////////////////////////////
 
 };
@@ -2026,6 +2022,9 @@ public:
 
     unsigned int get_m_core_sim_order_size(void) { return m_core_sim_order.size(); }
     void print_vuln_result(void);
+    void GetVulnResult(void);
+
+    shader_core_ctx** get_m_core(void) { return m_core; }
 
 private:
     unsigned m_cluster_id;

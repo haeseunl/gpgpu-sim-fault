@@ -686,120 +686,18 @@ void shader_core_ctx::fetch()
     }
 }
 
+
+
+
+
+
 void shader_core_ctx::func_exec_inst( warp_inst_t &inst )
 {
-    unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
-
-    PRINT( "[SM:%2d - func_exec_inst] inst: [%s] get_num_operands(): %d (clk: %u)\n"
-			, this->get_sid(), inst.get_asm_str().c_str(), inst.get_num_operands(), tot_clk);
-
-
     execute_warp_inst_t(inst);
     if( inst.is_load() || inst.is_store() )
         inst.generate_mem_accesses();
 
-    // TODO:
-    // Setup the timing info for vulnerable period
-	//inst.get_asm_str();
-
-
-	//inst.get_thd_info()
-    // get instruction info
-
-    warp_vuln_info* vuln_warp = this->get_exist_warp(inst.get_m_warp_id());
-
-    if (vuln_warp == NULL) {
-    	vuln_warp = new warp_vuln_info;
-    	//vuln_warp->asm_string = inst.get_asm_str();
-    	vuln_warp->set_cta_id(inst.get_dim3_cta_id());
-    	vuln_warp->set_thd_id(inst.get_dim3_thd_id());
-    	vuln_warp->hd_warp_id = inst.get_m_warp_id();
-    	vuln_warp->warp_thread_cnt = inst.active_count();
-
-
-    	PRINT("Create new warp info (m_warp_size: %d)\n", m_warp_size);
-    	this->vuln_warp_info.push_back(vuln_warp);
-    	//inst.print_detail_info();
-    }
-    else {
-    	//printf("Use existing warp info\n");
-    }
-    //inst.print_detail_info();
-    std::string reg_name;
-    int 		reg_id;
-    reg_info* dst_info;
-    // Get dest operands info
-
-
-    if (inst.get_num_operands()>0) {
-    	// destination
-    	operand_info* dst = inst.get_inst_ptr()->dst_ptr();
-    	if (!dst->is_vector() && dst->is_reg()) {
-    		reg_name = dst->get_symbol()->name();
-    		//printf("dst->get_symbol()->name(): %s | dst->bool is_param_local(): %d | dst->is_reg(): %d\n", reg_name.c_str(), dst->is_param_local(), dst->is_reg());
-    		reg_id = dst->reg_num();
-
-    		dst_info = vuln_warp->get_reg_info(reg_name, reg_id);
-
-    		if (inst.get_inst_ptr()->op != STORE_OP) {
-        		if (dst_info==NULL) {
-        			dst_info = new reg_info;
-        			dst_info->name = reg_name;
-        			dst_info->asm_string = inst.get_asm_str();
-        			dst_info->reg_id = reg_id;
-        			dst_info->add_avail_flag();
-        			dst_info->set_avail_flag(0, false);
-        			dst_info->set_ref_cnt(0);
-        			dst_info->start.push_back(0);
-        			dst_info->end.push_back(0);
-        			vuln_warp->vuln_regs.push_back(dst_info);
-
-        			PRINT( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
-        	    			, this->get_sid(), inst.get_m_hw_warp_id(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
-
-
-        		}
-        		else {
-        			dst_info->asm_string = inst.get_asm_str();
-        			dst_info->add_avail_flag();
-        			dst_info->start.push_back(0);
-        			dst_info->end.push_back(0);
-
-        			PRINT( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] add new dest reg [%s] (id: %d) (clk: %u)\n"
-        	    			, this->get_sid(), inst.get_m_hw_warp_id(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
-        		}
-    		}
-    	}
-    }
-
-    // TODO:
-    // Now deal with predicat instruction.
-    reg_info* vuln_reg = NULL;
-    int reg_ref_cnt = 0;
-    if (inst.get_inst_ptr()->has_pred()) {
-    	reg_name = inst.get_inst_ptr()->get_pred().name();
-    	reg_id = inst.get_inst_ptr()->get_pred().reg_num();
-    	vuln_reg = vuln_warp->get_reg_info(reg_name, reg_id);
-    	assert (vuln_reg!=NULL);
-		reg_ref_cnt = vuln_reg->get_ref_cnt();
-		assert (vuln_reg->get_avail_flag(reg_ref_cnt));
-
-		vuln_reg->end[reg_ref_cnt] = tot_clk;
-
-		PRINT( "[SM:%2d - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | ref: %d | start: %u | end: %u | active cnt: %u))\n"
-    			, this->get_sid(), inst.get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk, reg_ref_cnt
-    			, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], inst.active_count());
-
-    }
-
-
-
-
-
-
-
-
-
+    FindNCreateVulnInfo(inst);
 }
 
 void shader_core_ctx::issue_warp( register_set& pipe_reg_set, const warp_inst_t* next_inst, const active_mask_t &active_mask, unsigned warp_id )
@@ -955,13 +853,12 @@ void scheduler_unit::cycle()
     	if (warp != NULL) {
 
     		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
-    			ref_cnt = warp->vuln_regs[i]->get_ref_cnt();
-    	    	if (!m_scoreboard->checkCollisionReg(warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag(ref_cnt)==false) {
-    	    		PRINT( "[SM:%2d(wid: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
+    	    	if (!m_scoreboard->checkCollisionReg(warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag()==false) {
+    	    		printf( "[SM:%2d (w: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
     	    				, this->m_shader->get_sid(), warp->hd_warp_id, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, warp->vuln_regs[i]->asm_string.c_str(), tot_clk, ref_cnt);
-    	    		warp->vuln_regs[i]->set_avail_flag(ref_cnt, true);
-    	    		warp->vuln_regs[i]->start[ref_cnt] = tot_clk-1;
-    	    		warp->vuln_regs[i]->end[ref_cnt] = tot_clk-1;
+    	    		warp->vuln_regs[i]->set_avail_flag();
+    	    		warp->vuln_regs[i]->start = tot_clk-1;
+    	    		warp->vuln_regs[i]->end = tot_clk-1;
     	    	}
     		}
     	}
@@ -1393,97 +1290,6 @@ void shader_core_ctx::execute()
         		m_fu[n]->check(candidate, n, fault_injection_list[0]->faulty_comp);
         	}
 
-//        	if ( (inst.get_inst_ptr()->op == LOAD_OP) || (inst.get_inst_ptr()->op == STORE_OP) || (inst.get_inst_ptr()->op == MEMORY_BARRIER_OP) ) {
-//
-//        	}
-
-        	warp_inst_t* last_stage = m_fu[n]->GetLastStage();
-        	if (last_stage!=NULL) {
-        		tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
-
-        		warp_vuln_info* warp_info = this->get_exist_warp(last_stage->get_m_hw_warp_id());
-        		reg_info* vuln_reg;
-        		reg_info* dst_vuln_reg;
-        		assert (warp_info!=NULL);
-        		std::string reg_name;
-        		int reg_id = -1;
-        		int reg_ref_cnt;
-
-        	    // Get src operand info
-        		int in_operand_num = last_stage->get_in_operand_num();
-        		//printf("[SM:%2d - Last stage] insn: [%s] (clk: %u | in operands: %d)\n", this->get_sid(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
-        	    if (in_operand_num>=1 || last_stage->get_inst_ptr()->has_memory_read()) {
-       	    	//if (last_stage->get_num_operands()>1) {
-        	    	if (last_stage->get_inst_ptr()->has_memory_read()) {
-        	    		in_operand_num++;
-        	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (LOAD_OP) (clk: %u | in_operand_num: %d) \n"
-        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
-        	    	}
-        	    	else {
-        	    		in_operand_num = MAX(last_stage->get_in_operand_num(), last_stage->get_num_operands());
-        	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] (clk: %u | in_operand_num: %d)\n"
-        	    				, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk, in_operand_num);
-        	    	}
-
-        	    	for (int i=0; i<in_operand_num; i++) {
-
-        	    	}
-        	    }
-
-        	    // After handle all the other case, check weather this is a next time.
-        	    if (!last_stage->get_inst_ptr()->has_memory_write() && last_stage->get_num_operands()>0) {
-       	    	//if (last_stage->get_inst_ptr()->dst_ptr()->is_reg() && last_stage->get_inst_ptr()->has_memory_write()==false) {
-        	    	PRINT("[SM:%2d (wid: %2d) - Last stage] insn: [%s] Dest Reg  (clk: %u)\n"
-	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), tot_clk);
-
-        	    	if (last_stage->get_inst_ptr()->dst().is_reg()) {
-
-
-
-                	    reg_name = last_stage->get_inst_ptr()->dst_ptr()->name();
-                	    reg_id = last_stage->get_inst_ptr()->dst_ptr()->reg_num();
-
-
-
-                	    dst_vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-//                	    if (dst_vuln_reg==NULL) {
-//                	    	reg_info* dst_info = new reg_info;
-//                			dst_info->name = reg_name;
-//                			//dst_info->asm_string = last_stage->get_asm_str();
-//                			dst_info->reg_id = reg_id;
-////                			dst_info->add_avail_flag();
-////                			dst_info->set_avail_flag(0, true);
-////                			dst_info->set_ref_cnt(0);
-////                			dst_info->start.push_back(tot_clk);
-////                			dst_info->end.push_back(tot_clk);
-////                			warp_info->vuln_regs.push_back(dst_info);
-//
-//                			printf( "[SM:%2d(wid: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
-//                	    			, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), reg_name.c_str(), reg_id, tot_clk);
-//
-//                	    	//assert(0);
-//                	    }
-
-
-                	    reg_ref_cnt = dst_vuln_reg->get_ref_cnt();
-                	    if (dst_vuln_reg->get_cnt()>reg_ref_cnt ) {
-                	    	dst_vuln_reg->inc_ref_cnt();
-                	    	PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] Dest Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
-        	    					, this->get_sid(), last_stage->get_m_hw_warp_id(), last_stage->get_asm_str().c_str(), dst_vuln_reg->name.c_str(), dst_vuln_reg->reg_id, dst_vuln_reg->get_ref_cnt(), tot_clk);
-
-        	    			dst_vuln_reg->start[reg_ref_cnt+1] = tot_clk;
-        	    			dst_vuln_reg->end[reg_ref_cnt+1] = tot_clk;
-                	    }
-        	    	}
-
-
-        	    }
-
-
-
-        	}
-
-
         	m_fu[n]->cycle();
 
         }
@@ -1881,6 +1687,9 @@ pipelined_simd_unit::pipelined_simd_unit( register_set* result_port, const shade
 // Bug fixed.
 void pipelined_simd_unit::cycle()
 {
+    std::string reg_name;
+    int reg_id = -1;
+    int reg_ref_cnt=0;
 	//printf("pipelined_simd_unit::cycle()");
     if( !m_pipeline_reg[0]->empty() ){
         m_result_port->move_in(m_pipeline_reg[0]);
@@ -1889,57 +1698,7 @@ void pipelined_simd_unit::cycle()
         unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 
         if (m_pipeline_reg[0]->valid()) {
-            warp_vuln_info* warp_info = this->m_core->get_exist_warp(m_pipeline_reg[0]->get_m_warp_id());
-            int in_operand_num = m_pipeline_reg[0]->get_in_operand_num();
-            reg_info* vuln_reg;
-            reg_info* dst_vuln_reg;
-
-            PRINT("[SM:%2d - Last stage] insn: [%s] (clk: %u | in operands: %d)\n", this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), tot_clk, in_operand_num);
-
-            assert (warp_info!=NULL);
-            std::string reg_name;
-            int reg_id = -1;
-            int reg_ref_cnt;
-
-            for (int i=0; i<in_operand_num; i++) {
-	    		PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
-	    				, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str()
-	    				, m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg());
-	    		vuln_reg = NULL;
-	    		if (m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg()) {
-	    			reg_name = m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->name();
-    	    		reg_id = m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->reg_num();
-    	    		vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-//    	    		if ((vuln_reg==NULL)) {
-//    	    			printf("[FATAL]th reg: %s (id: %d) not found\n", reg_name.c_str(), reg_id);
-//    	    			assert(0) ;
-//    	    		}
-
-	    		}
-
-
-	    		if (vuln_reg!=NULL) {
-	    			reg_ref_cnt = vuln_reg->get_ref_cnt();
-    	    		vuln_reg->get_avail_flag(reg_ref_cnt);
-
-    	    		if (reg_id<0) { reg_id = vuln_reg->reg_id; }
-    	    		vuln_reg->end[reg_ref_cnt] = tot_clk;
-
-    	    		PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
-    	    				, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], m_pipeline_reg[0]->active_count());
-
-    	    		// This handles the recursive case
-    	    		if (vuln_reg->get_cnt()>reg_ref_cnt && m_pipeline_reg[0]->out[0] == vuln_reg->reg_id ) {
-    	    			vuln_reg->end[reg_ref_cnt] = tot_clk;
-    	    			vuln_reg->inc_ref_cnt();
-    	    			PRINT("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
-    	    					, this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
-
-    	    			vuln_reg->start[reg_ref_cnt+1] = tot_clk;
-    	    			vuln_reg->end[reg_ref_cnt+1] = tot_clk;
-    	    		}
-	    		}
-            }
+        	this->m_core->UpdateSrcVulnInfo(m_pipeline_reg[0]);
         }
 
     }
@@ -2338,101 +2097,12 @@ void ldst_unit::cycle()
 	this->print(stdout);
 	printf("=======================================================================\n\n");
 #endif
-	unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+
+
 	if (!m_dispatch_reg->empty()) {
 		// both input and output need to considered.
-
-		if (m_dispatch_reg->valid()) {
-			warp_vuln_info* warp_info = this->m_core->get_exist_warp(m_dispatch_reg->get_m_warp_id());
-			int in_operand_num = m_dispatch_reg->get_in_operand_num();
-			int out_operand_num = m_dispatch_reg->get_out_operant_num();
-			reg_info* vuln_reg;
-			reg_info* dst_vuln_reg;
-
-			PRINT("[SM:%2d - Last stage] insn: [%s] (clk: %u | in operands: %d | out operands: %d)\n"
-					, this->m_core->get_sid(), m_dispatch_reg->get_asm_str().c_str(), tot_clk, in_operand_num, out_operand_num);
-
-			assert (warp_info!=NULL);
-			std::string reg_name;
-			int reg_id = -1;
-			int reg_ref_cnt;
-
-			if(m_dispatch_reg->is_load()) {
-				for (int i=0; i<in_operand_num; i++) {
-					PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
-							, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str()
-							, m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg());
-					if (m_dispatch_reg->get_inst_ptr()->src_ptr(i)->is_reg()) {
-						reg_name = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->name();
-						reg_id = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->reg_num();
-						vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-					}
-
-					if (vuln_reg!=NULL) {
-						reg_ref_cnt = vuln_reg->get_ref_cnt();
-						assert (vuln_reg->get_avail_flag(reg_ref_cnt));
-
-						if (reg_id<0) { reg_id = vuln_reg->reg_id; }
-						vuln_reg->end[reg_ref_cnt] = tot_clk+2;
-
-						PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
-								, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], m_pipeline_reg[0]->active_count());
-
-						// This handles the recursive case
-						if (vuln_reg->get_cnt()>reg_ref_cnt && m_pipeline_reg[0]->out[0] == vuln_reg->reg_id ) {
-							vuln_reg->end[reg_ref_cnt] = tot_clk+2;
-							vuln_reg->inc_ref_cnt();
-							printf("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
-									, this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
-
-							vuln_reg->start[reg_ref_cnt+1] = tot_clk+2;
-							vuln_reg->end[reg_ref_cnt+1] = tot_clk+2;
-						}
-					}
-				}
-			}
-			if(m_dispatch_reg->is_store()) {
-				for (int i=0; i<out_operand_num; i++) {
-					PRINT("[SM:%2d(wid: %2d) - Last stage] insn: [%s] is_reg: %d\n"
-							, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), m_pipeline_reg[0]->get_asm_str().c_str()
-							, m_pipeline_reg[0]->get_inst_ptr()->src_ptr(i)->is_reg());
-					if (m_dispatch_reg->get_inst_ptr()->src_ptr(i)->is_reg()) {
-						reg_name = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->name();
-						reg_id = m_dispatch_reg->get_inst_ptr()->src_ptr(i)->reg_num();
-						vuln_reg = warp_info->get_reg_info(reg_name, reg_id);
-					}
-
-					if (vuln_reg!=NULL) {
-						reg_ref_cnt = vuln_reg->get_ref_cnt();
-						assert (vuln_reg->get_avail_flag(reg_ref_cnt));
-
-						if (reg_id<0) { reg_id = vuln_reg->reg_id; }
-						vuln_reg->end[reg_ref_cnt] = tot_clk+2;
-
-						PRINT("[SM:%2d(wid: %2d)][%d]th src[%d]->get_symbol()->name(): %s | src[%d]->reg_num(): %d (ref:%d | start: %u | end: %u | active cnt: %u)\n"
-								, this->get_sid(), m_pipeline_reg[0]->get_m_hw_warp_id(), i, i, reg_name.c_str(), i, reg_id, reg_ref_cnt, vuln_reg->start[reg_ref_cnt], vuln_reg->end[reg_ref_cnt], m_pipeline_reg[0]->active_count());
-
-						// This handles the recursive case
-						if (vuln_reg->get_cnt()>reg_ref_cnt && m_pipeline_reg[0]->out[0] == vuln_reg->reg_id ) {
-							vuln_reg->end[reg_ref_cnt] = tot_clk+2;
-							vuln_reg->inc_ref_cnt();
-							printf("[SM:%2d - Last stage] insn: [%s] Reg [%s] (id:%d) Start point of (%d)th vulnerable period (clk: %u)\n"
-									, this->m_core->get_sid(), m_pipeline_reg[0]->get_asm_str().c_str(), vuln_reg->name.c_str(), vuln_reg->reg_id, vuln_reg->get_ref_cnt(), tot_clk);
-
-							vuln_reg->start[reg_ref_cnt+1] = tot_clk+2;
-							vuln_reg->end[reg_ref_cnt+1] = tot_clk+2;
-						}
-					}
-				}
-			}
-		}
+		this->m_core->UpdateSrcVulnInfo(m_dispatch_reg);
 	}
-
-
-
-
-
-
 
 		writeback();
 	m_operand_collector->step();
@@ -4123,16 +3793,16 @@ void shader_core_ctx::checkExecutionStatusAndUpdate(warp_inst_t &inst, unsigned 
 }
 
 
-warp_vuln_info* shader_core_ctx::get_exist_warp(warp_inst_t* inst)
-{
-	warp_vuln_info* ret = NULL;
-	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
-		if (this->vuln_warp_info[i]->is_same_warp(inst->get_dim3_cta_id(), inst->get_dim3_thd_id())) {
-			ret = this->vuln_warp_info[i];
-		}
-	}
-	return ret;
-}
+//warp_vuln_info* shader_core_ctx::get_exist_warp(warp_inst_t* inst)
+//{
+//	warp_vuln_info* ret = NULL;
+//	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
+//		if (this->vuln_warp_info[i]->is_same_warp(inst->get_dim3_cta_id(), inst->get_dim3_thd_id())) {
+//			ret = this->vuln_warp_info[i];
+//		}
+//	}
+//	return ret;
+//}
 
 warp_vuln_info* shader_core_ctx::get_exist_warp(int hwid)
 {
@@ -4140,6 +3810,7 @@ warp_vuln_info* shader_core_ctx::get_exist_warp(int hwid)
 	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
 		if (this->vuln_warp_info[i]->hd_warp_id == hwid) {
 			ret = this->vuln_warp_info[i];
+			break;
 		}
 	}
 	return ret;
@@ -4152,7 +3823,7 @@ warp_vuln_info* shader_core_ctx::get_exist_warp(int hwid)
 #define PRINT(...)
 #endif
 
-/////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 void simt_core_cluster::print_vuln_result(void)
 {
 	PRINT("===================================================\n");
@@ -4162,44 +3833,368 @@ void simt_core_cluster::print_vuln_result(void)
     }
     PRINT("===================================================\n");
 }
-/////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
-void shader_core_ctx::print_vuln_result(void)
+///////////////////////////////////////////////////////////////////////////////
+void simt_core_cluster::GetVulnResult(void)
 {
-	unsigned long long tot_vuln_period = 0;
+	unsigned long long tot_vuln = 0;
+	PRINT("===================================================\n");
+	PRINT("SIMTCluster (ID: %d)\n", this->m_cluster_id);
+    for( std::list<unsigned>::iterator it = m_core_sim_order.begin(); it != m_core_sim_order.end(); ++it ) {
+    	tot_vuln = m_core[*it]->GetVulnResult();
+    }
+    PRINT("===================================================\n");
+}
+///////////////////////////////////////////////////////////////////////////////
+
+
+#define PRINT_VULN_CALC
+#ifdef PRINT_VULN_CALC
+#define VULN_CALC(...) printf(__VA_ARGS__)
+#else
+#define VULN_CALC(...)
+#endif
+
+unsigned long long shader_core_ctx::GetVulnResult(void) {
 	unsigned long long vuln_period = 0;
 	unsigned long long vuln_period_per_warp = 0;
-	unsigned long long vuln_period_per_reg = 0;
-	unsigned long long thd_num = 0;
+	unsigned long long thd_num = 32;
+	unsigned long long tot_vuln_period = 0;
+    unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
 
 
-	for (unsigned int i=0; i<this->vuln_warp_info.size(); i++) {
-		vuln_period_per_warp = 0;
-		PRINT("----------------------------------------------\n");
-		thd_num = this->vuln_warp_info[i]->warp_thread_cnt;
-		PRINT(" [%d]th warp (warp_thread_cnt: %d)\n", i, thd_num);
-		for (unsigned int r=0; r<this->vuln_warp_info[i]->vuln_regs.size(); r++) {
-			PRINT("  [%d]th Reg name: %s (id: %d)\n", r, this->vuln_warp_info[i]->vuln_regs[r]->name.c_str(), this->vuln_warp_info[i]->vuln_regs[r]->reg_id);
-			vuln_period_per_reg = 0;
-			assert(this->vuln_warp_info[i]->vuln_regs[r]->end.size()==this->vuln_warp_info[i]->vuln_regs[r]->start.size());
-			for (unsigned int cnt=0; cnt<this->vuln_warp_info[i]->vuln_regs[r]->start.size(); cnt++) {
-				vuln_period = this->vuln_warp_info[i]->vuln_regs[r]->end[cnt]-this->vuln_warp_info[i]->vuln_regs[r]->start[cnt];
-				PRINT("   - (%d)th vulnerable period: %u (start: %u | end %u)\n"
-						, cnt, vuln_period
-						, this->vuln_warp_info[i]->vuln_regs[r]->start[cnt], this->vuln_warp_info[i]->vuln_regs[r]->end[cnt]);
-				vuln_period_per_reg += vuln_period;
-			}
+    VULN_CALC( "[SM:%2d - GetVulnResult] vuln_warp_info.size(): %d (clk: %llu)\n", this->get_sid(), vuln_warp_info.size(), tot_clk);
+    for (unsigned int w=0; w<this->vuln_warp_info.size(); w++) {
+    	thd_num = vuln_warp_info[w]->warp_thread_cnt;
+    	VULN_CALC("  +- [%d]th warp info (# of info: %d)\n", w, vuln_warp_info[w]->vuln_regs.size());
+    	for (unsigned int r=0; r<this->vuln_warp_info[w]->vuln_regs.size(); r++) {
 
-			PRINT("  [Reg sum] Total vulnerable period for Reg [%s] (id: %d): %u\n"
-					, this->vuln_warp_info[i]->vuln_regs[r]->name.c_str(), this->vuln_warp_info[i]->vuln_regs[r]->reg_id, vuln_period_per_reg);
-			vuln_period_per_warp += vuln_period_per_reg;
-		}
-		PRINT("[Warp sum] Vulnerable period for (%d)th warp: %u\n", i, vuln_period_per_warp);
-		tot_vuln_period += (vuln_period_per_warp*thd_num);
-		PRINT("----------------------------------------------\n");
+        	assert(this->vuln_warp_info[w]->vuln_regs[r]->end>=this->vuln_warp_info[w]->vuln_regs[r]->start);
+        	vuln_period = this->vuln_warp_info[w]->vuln_regs[r]->end - this->vuln_warp_info[w]->vuln_regs[r]->start;
+        	vuln_period_per_warp += vuln_period;
+        	VULN_CALC("   +- (%d)th warp [%d]th Reg name: %s (id: %d) vulnerable period: %llu [%llu - %llu]\n"
+    				, w, r, vuln_warp_info[w]->vuln_regs[r]->name.c_str(), vuln_warp_info[w]->vuln_regs[r]->reg_id
+    				, vuln_period, vuln_warp_info[w]->vuln_regs[r]->start, vuln_warp_info[w]->vuln_regs[r]->end);
+    	}
+        VULN_CALC(" +- [Warp sum] Vulnerable period for (%d)th warp: %llu\n", w, vuln_period_per_warp*thd_num);
 	}
 
+	tot_vuln_period += (vuln_period_per_warp*thd_num);
+	PRINT("----------------------------------------------\n");
 	gpu_tot_vuln_period += tot_vuln_period;
-	PRINT("[Vulnerability] Total vulnerable period[SM: %d]: %u\n", this->get_sid(), tot_vuln_period);
+	VULN_CALC("[Vulnerability] Total vulnerable period[SM: %d]: %u\n", this->get_sid(), tot_vuln_period);
+}
+
+
+
+
+
+
+
+
+
+bool reg_info::get_avail_flag(void) { return bAvail; }
+void reg_info::set_avail_flag(void) { bAvail=true; }
+void reg_info::clr_avail_flag(void) { bAvail=false; }
+
+reg_info* shader_core_ctx::get_reg_info(warp_vuln_info* target, std::string data, int reg_num)
+{
+	reg_info* ret = NULL;
+	std::string name_in = data;
+	int cnt=0;
+	if (target->vuln_regs.size()>0) {
+
+		for (cnt=target->vuln_regs.size()-1; cnt>=0; cnt--) {
+			assert(cnt>=0);
+			if (!data.compare(target->vuln_regs[cnt]->name) && target->vuln_regs[cnt]->reg_id==reg_num) {
+				ret = target->vuln_regs[cnt];
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+
+#define PRINT_VULN_FIND_
+#ifdef PRINT_VULN_FIND
+#define VULN_FIND(...) printf(__VA_ARGS__)
+#else
+#define VULN_FIND(...)
+#endif
+
+void shader_core_ctx::FindNCreateVulnInfo( warp_inst_t &inst )
+{
+    // TODO:
+    // Setup the timing info for vulnerable period
+	//inst.get_asm_str();
+
+
+	//inst.get_thd_info()
+    // get instruction info
+    unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+	std::vector<std::string> reg_names;
+	std::vector<int> reg_nums;
+
+	std::string tmp_name;
+	int tmp_num = 0;
+	int nNumVecElem = 0;
+
+    reg_info* dst_info = NULL;
+    reg_info* vuln_reg = NULL;
+    reg_names.clear();
+    reg_nums.clear();
+
+    //////////////////////// START!!!
+    VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] get_num_operands(): %d (clk: %u)\n"
+			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), inst.get_num_operands(), tot_clk);
+    warp_vuln_info* vuln_warp = this->get_exist_warp(inst.get_m_warp_id());
+
+    if (vuln_warp == NULL) {
+    	vuln_warp = new warp_vuln_info;
+    	//vuln_warp->asm_string = inst.get_asm_str();
+    	vuln_warp->set_cta_id(inst.get_dim3_cta_id());
+    	vuln_warp->set_thd_id(inst.get_dim3_thd_id());
+    	vuln_warp->hd_warp_id = inst.get_m_warp_id();
+    	vuln_warp->warp_thread_cnt = inst.active_count();
+
+
+        VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] Create new warp level info: (id: %d | clk: %u)\n"
+    			, this->get_sid(), inst.get_m_warp_id(), vuln_warp->hd_warp_id, tot_clk);
+    	this->vuln_warp_info.push_back(vuln_warp);
+    	//inst.print_detail_info();
+    }
+    else {
+        VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] Use existing new warp level info: (# of info: %d | id: %d | clk: %u)\n"
+    			, this->get_sid(), inst.get_m_warp_id(), this->vuln_warp_info.size(), vuln_warp->hd_warp_id, tot_clk);
+    }
+
+
+    // Get dest operands info
+
+    if (inst.is_vectorin) {
+    	// vector case
+    	VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst(vectorin)] inst: [%s] create new dest reg (clk: %u)\n"
+    			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), tot_clk);
+		if (inst.get_inst_ptr()->dst().is_tex()) {
+			VULN_FIND( "[SM:%2d (wid: %2d) - func_exec_inst(vectorin)] tex memory...\n", this->get_sid(), inst.get_m_warp_id());
+		}
+
+		if (inst.get_inst_ptr()->dst().is_vector() && inst.get_inst_ptr()->dst().is_valid()
+				&& inst.get_inst_ptr()->op != STORE_OP) {
+
+			nNumVecElem = inst.get_inst_ptr()->dst().get_vect_nelem();
+			VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst(vectorin)] vector in (size: %d)\n"
+					, this->get_sid(), inst.get_m_warp_id(), nNumVecElem);
+
+			for (int v=0; v<nNumVecElem; v++) {
+				tmp_name = inst.get_inst_ptr()->dst().vec_symbol(v)->name();
+				tmp_num = inst.get_inst_ptr()->dst().vec_symbol(v)->reg_num();
+				reg_names.push_back(tmp_name);
+				reg_nums.push_back(tmp_num);
+			}
+		}
+    }
+    else {
+    	// normal case
+    	nNumVecElem = inst.get_num_operands();
+
+    	VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] normal case (nNumVecElem: %d)\n"
+				, this->get_sid(), inst.get_m_warp_id(), nNumVecElem);
+
+    	 if (inst.get_num_operands()>0
+    			 && inst.get_inst_ptr()->dst_ptr()->is_reg()
+    			 //&& inst.get_inst_ptr()->dst_ptr()->is_valid()
+    			 && inst.get_inst_ptr()->op != STORE_OP) {
+
+    		 tmp_name = inst.get_inst_ptr()->dst().name();
+    		 tmp_num = inst.get_inst_ptr()->dst().reg_num();
+    		 reg_names.push_back(tmp_name);
+    		 reg_nums.push_back(tmp_num);
+
+    	 }
+    }
+
+
+    assert(reg_names.size()==reg_nums.size());
+
+    for (int r=0; r<(int)reg_names.size(); r++) {
+    	dst_info = NULL;
+    	VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] process (%d)th info: %s(%d)\n"
+    			, this->get_sid(), inst.get_m_warp_id(), r, reg_names[r].c_str(), reg_nums[r]);
+    	dst_info = get_reg_info(vuln_warp, reg_names[r], reg_nums[r]);
+    	if (dst_info==NULL) {
+    		// no information. We need to create new one.
+    		dst_info = new reg_info;
+    		dst_info->name = reg_names[r];
+    		dst_info->asm_string = inst.get_asm_str();
+    		dst_info->reg_id = reg_nums[r];
+    		dst_info->clr_avail_flag();
+
+    		dst_info->start = 0;
+    		dst_info->end = 0;
+    		vuln_warp->vuln_regs.push_back(dst_info);
+
+    		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] create new dest reg [%s] (id: %d) (clk: %u)\n"
+        			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), reg_names[r].c_str(), reg_nums[r], tot_clk);
+    	}
+    	else {
+    		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: dest reg already exist. [%s](id: %d) - inst :[%s] (clk: %u)\n"
+        			, this->get_sid(), inst.get_m_warp_id(), reg_names[r].c_str(), reg_nums[r], inst.get_asm_str().c_str(), tot_clk);
+    	}
+
+
+    }
+
+    // TODO:
+    // Now deal with predicate instruction.
+
+    int reg_ref_cnt = 0;
+    if (inst.get_inst_ptr()->has_pred()) {
+    	tmp_name = inst.get_inst_ptr()->get_pred().name();
+    	tmp_num = inst.get_inst_ptr()->get_pred().reg_num();
+    	vuln_reg = get_reg_info(vuln_warp, tmp_name, tmp_num);
+    	assert (vuln_reg!=NULL);
+
+		vuln_reg->end = tot_clk+2;
+
+		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | start: %u | end: %u | active cnt: %u))\n"
+    			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), tmp_name.c_str(), tmp_num, tot_clk
+    			, vuln_reg->start, vuln_reg->end, inst.active_count());
+
+    }
 
 }
+
+
+#define PRINT_VULN_
+#ifdef PRINT_VULN
+#define VULN_UPDATE(...) printf(__VA_ARGS__)
+#else
+#define VULN_UPDATE(...)
+#endif
+
+void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
+{
+	unsigned long long tot_clk = gpu_sim_cycle+gpu_tot_sim_cycle;
+	warp_vuln_info* warp_info = NULL;
+	int nelem = 0;
+	reg_info* vuln_reg=NULL;
+	reg_info* dst_vuln_reg=NULL;
+
+	std::vector<std::string> reg_names;
+	std::vector<int> reg_nums;
+
+	std::string tmp_name;
+	int tmp_num = 0;
+
+	if (inst->valid()) {
+		warp_info = this->get_exist_warp(inst->get_m_warp_id());
+		assert (warp_info!=NULL);
+
+		VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] insn: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), inst->get_asm_str().c_str(), tot_clk);
+
+		// collect the reg info
+		reg_names.clear();
+		reg_nums.clear();
+		// handle vector operand value
+		if(inst->is_vectorin==1 || inst->is_vectorout==1) {
+			if (inst->get_inst_ptr()->src1().is_vector() && inst->get_inst_ptr()->src1().is_reg()) {
+				// vector
+				VULN_UPDATE("  +- vector instruction\n");
+				nelem = inst->get_inst_ptr()->src1().get_vect_nelem();
+
+				for (int n=0; n<nelem; n++) {
+
+					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s(%d)] - [inst: %s] (clk: %u)\n"
+							, this->get_sid(), inst->get_m_warp_id(), n, tmp_name.c_str(), tmp_num, inst->get_asm_str().c_str(), tot_clk);
+
+					tmp_name = inst->get_inst_ptr()->src1().vec_symbol(n)->name();
+					tmp_num = inst->get_inst_ptr()->src1().vec_symbol(n)->reg_num();
+
+					reg_names.push_back(tmp_name);
+					reg_nums.push_back(tmp_num);
+				}
+			}
+		}
+		else {
+			// Handle normal value
+			nelem = inst->get_in_operand_num();
+			for (int n=0; n<nelem; n++) {
+				if (inst->get_inst_ptr()->operand_lookup(n+1).is_reg() && inst->get_inst_ptr()->operand_lookup(n+1).is_valid()) {
+					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+					tmp_name = inst->get_inst_ptr()->operand_lookup(n+1).name();
+					tmp_num = inst->get_inst_ptr()->operand_lookup(n+1).reg_num();
+					reg_names.push_back(tmp_name);
+					reg_nums.push_back(tmp_num);
+				}
+
+			}
+		}
+
+		// consider the regs for address calculation?
+		if(inst->is_store()) {
+			if (inst->get_inst_ptr()->dst().is_vector() && inst->get_inst_ptr()->dst().is_reg()
+					&& inst->get_inst_ptr()->dst().is_valid()) {
+
+				// vector
+				VULN_UPDATE("  +- dest vector instruction\n");
+				nelem = inst->get_inst_ptr()->dst().get_vect_nelem();
+
+				for (int n=0; n<nelem; n++) {
+
+					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info (STORE): [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+
+					tmp_name = inst->get_inst_ptr()->dst().vec_symbol(n)->name();
+					tmp_num = inst->get_inst_ptr()->dst().vec_symbol(n)->reg_num();
+
+					reg_names.push_back(tmp_name);
+					reg_nums.push_back(tmp_num);
+				}
+			}
+			else {
+				// normal case
+				nelem = inst->get_out_operant_num();
+				for (int n=0; n<nelem; n++) {
+
+					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+
+					tmp_name = inst->get_inst_ptr()->dst().name();
+					tmp_num = inst->get_inst_ptr()->dst().reg_num();
+					reg_names.push_back(tmp_name);
+					reg_nums.push_back(tmp_num);
+				}
+			}
+		}
+
+		assert(reg_names.size()==reg_nums.size());
+
+		for (int r=0; r<(int)reg_names.size(); r++) {
+			vuln_reg=NULL;
+			vuln_reg = get_reg_info(warp_info, reg_names[r], reg_nums[r]);
+			if (vuln_reg!=NULL) {
+				if(!(inst->is_load() || inst->is_store())) {
+					vuln_reg->end = vuln_reg->start+1;
+				}
+				else {
+					vuln_reg->end = tot_clk;
+				}
+				VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] (%d)th update info: [%s] (start: %llu | end: %llu | clk: %llu) - inst: %s\n"
+						, this->get_sid(), inst->get_m_warp_id(), r, vuln_reg->name.c_str(), vuln_reg->start, vuln_reg->end, tot_clk, inst->get_asm_str().c_str());
+
+			}
+		}// end of for
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
