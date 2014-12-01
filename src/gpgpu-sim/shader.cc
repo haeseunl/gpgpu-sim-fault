@@ -4135,102 +4135,108 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 	std::string tmp_name;
 	int tmp_num = 0;
 
-	if (inst->valid()) {
+	if (inst->valid() && inst->get_inst_ptr()->src1().is_reg()) {
 		warp_info = this->get_exist_warp(inst->get_m_warp_id(), inst->get_m_hw_cta_id());
-		assert (warp_info!=NULL);
+		if (warp_info!=NULL) {
+			assert (warp_info!=NULL);
 
-		VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] insn: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), inst->get_asm_str().c_str(), tot_clk);
+			VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] insn: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), inst->get_asm_str().c_str(), tot_clk);
 
-		// collect the reg info
-		reg_names.clear();
-		reg_nums.clear();
-		// handle vector operand value
-		if(inst->is_vectorin==1 || inst->is_vectorout==1) {
-			if (inst->get_inst_ptr()->src1().is_vector() && inst->get_inst_ptr()->src1().is_reg()) {
-				// vector
-				VULN_UPDATE("  +- vector instruction\n");
-				nelem = inst->get_inst_ptr()->src1().get_vect_nelem();
+			// collect the reg info
+			reg_names.clear();
+			reg_nums.clear();
+			// handle vector operand value
+			if(inst->is_vectorin==1 || inst->is_vectorout==1) {
+				if (inst->get_inst_ptr()->src1().is_vector()) {
+					// vector
+					VULN_UPDATE("  +- vector instruction\n");
+					nelem = inst->get_inst_ptr()->src1().get_vect_nelem();
 
-				for (int n=0; n<nelem; n++) {
+					for (int n=0; n<nelem; n++) {
 
-					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s(%d)] - [inst: %s] (clk: %u)\n"
-							, this->get_sid(), inst->get_m_warp_id(), n, tmp_name.c_str(), tmp_num, inst->get_asm_str().c_str(), tot_clk);
+						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s(%d)] - [inst: %s] (clk: %u)\n"
+								, this->get_sid(), inst->get_m_warp_id(), n, tmp_name.c_str(), tmp_num, inst->get_asm_str().c_str(), tot_clk);
 
-					tmp_name = inst->get_inst_ptr()->src1().vec_symbol(n)->name();
-					tmp_num = inst->get_inst_ptr()->src1().vec_symbol(n)->reg_num();
+						tmp_name = inst->get_inst_ptr()->src1().vec_symbol(n)->name();
+						tmp_num = inst->get_inst_ptr()->src1().vec_symbol(n)->reg_num();
 
-					reg_names.push_back(tmp_name);
-					reg_nums.push_back(tmp_num);
-				}
-			}
-		}
-		else {
-			// Handle normal value
-			nelem = inst->get_in_operand_num();
-			for (int n=0; n<nelem; n++) {
-				if (inst->get_inst_ptr()->operand_lookup(n+1).is_reg() && inst->get_inst_ptr()->operand_lookup(n+1).is_valid()) {
-					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
-					tmp_name = inst->get_inst_ptr()->operand_lookup(n+1).name();
-					tmp_num = inst->get_inst_ptr()->operand_lookup(n+1).reg_num();
-					reg_names.push_back(tmp_name);
-					reg_nums.push_back(tmp_num);
-				}
-
-			}
-		}
-
-		// consider the regs for address calculation?
-		if(inst->is_store()) {
-			if (inst->get_inst_ptr()->dst().is_vector() && inst->get_inst_ptr()->dst().is_reg()
-					&& inst->get_inst_ptr()->dst().is_valid()) {
-
-				// vector
-				VULN_UPDATE("  +- dest vector instruction\n");
-				nelem = inst->get_inst_ptr()->dst().get_vect_nelem();
-
-				for (int n=0; n<nelem; n++) {
-
-					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info (STORE): [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
-
-					tmp_name = inst->get_inst_ptr()->dst().vec_symbol(n)->name();
-					tmp_num = inst->get_inst_ptr()->dst().vec_symbol(n)->reg_num();
-
-					reg_names.push_back(tmp_name);
-					reg_nums.push_back(tmp_num);
+						reg_names.push_back(tmp_name);
+						reg_nums.push_back(tmp_num);
+					}
 				}
 			}
 			else {
-				// normal case
-				nelem = inst->get_out_operant_num();
+				// Handle normal value
+				nelem = inst->get_in_operand_num();
 				for (int n=0; n<nelem; n++) {
+					if (inst->get_inst_ptr()->operand_lookup(n+1).is_reg() && inst->get_inst_ptr()->operand_lookup(n+1).is_valid()) {
+						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+						tmp_name = inst->get_inst_ptr()->operand_lookup(n+1).name();
+						tmp_num = inst->get_inst_ptr()->operand_lookup(n+1).reg_num();
+						reg_names.push_back(tmp_name);
+						reg_nums.push_back(tmp_num);
+					}
 
-					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
-
-					tmp_name = inst->get_inst_ptr()->dst().name();
-					tmp_num = inst->get_inst_ptr()->dst().reg_num();
-					reg_names.push_back(tmp_name);
-					reg_nums.push_back(tmp_num);
 				}
 			}
-		}
 
-		assert(reg_names.size()==reg_nums.size());
+			// consider the regs for address calculation?
+			if(inst->is_store()) {
+				if (inst->get_inst_ptr()->dst().is_vector() && inst->get_inst_ptr()->dst().is_reg()) {
 
-		for (int r=0; r<(int)reg_names.size(); r++) {
-			vuln_reg=NULL;
-			vuln_reg = get_reg_info(warp_info, reg_names[r], reg_nums[r]);
-			if (vuln_reg!=NULL) {
-				if(!(inst->is_load() || inst->is_store())) {
-					vuln_reg->end = tot_clk;
+					// vector
+					VULN_UPDATE("  +- dest vector instruction\n");
+					nelem = inst->get_inst_ptr()->dst().get_vect_nelem();
+
+					for (int n=0; n<nelem; n++) {
+
+						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info (STORE): [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+
+						tmp_name = inst->get_inst_ptr()->dst().vec_symbol(n)->name();
+						tmp_num = inst->get_inst_ptr()->dst().vec_symbol(n)->reg_num();
+
+						reg_names.push_back(tmp_name);
+						reg_nums.push_back(tmp_num);
+					}
 				}
 				else {
-					vuln_reg->end = vuln_reg->start+2;
-				}
-				VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] (%d)th update info: [%s] (start: %llu | end: %llu | clk: %llu) - inst: %s\n"
-						, this->get_sid(), inst->get_m_warp_id(), r, vuln_reg->name.c_str(), vuln_reg->start, vuln_reg->end, tot_clk, inst->get_asm_str().c_str());
+					// normal case
+					nelem = inst->get_out_operant_num();
+					for (int n=0; n<nelem; n++) {
 
+						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+
+						tmp_name = inst->get_inst_ptr()->dst().name();
+						tmp_num = inst->get_inst_ptr()->dst().reg_num();
+						reg_names.push_back(tmp_name);
+						reg_nums.push_back(tmp_num);
+					}
+				}
 			}
-		}// end of for
+
+			assert(reg_names.size()==reg_nums.size());
+
+			for (int r=0; r<(int)reg_names.size(); r++) {
+				vuln_reg=NULL;
+				vuln_reg = get_reg_info(warp_info, reg_names[r], reg_nums[r]);
+				if (vuln_reg!=NULL) {
+					if(!(inst->is_load() || inst->is_store())) {
+						vuln_reg->end = tot_clk;
+					}
+					else {
+						vuln_reg->end = vuln_reg->start+2;
+					}
+					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] (%d)th update info: [%s] (start: %llu | end: %llu | clk: %llu) - inst: %s\n"
+							, this->get_sid(), inst->get_m_warp_id(), r, vuln_reg->name.c_str(), vuln_reg->start, vuln_reg->end, tot_clk, inst->get_asm_str().c_str());
+
+				}
+			}// end of for
+		}
+		else {
+			printf("[SM:%2d (w: %2d) - Last stage] (warp_info==NULL) (clk: %llu) - inst: %s\n"
+					, this->get_sid(), inst->get_m_warp_id(), tot_clk, inst->get_asm_str().c_str());
+		}
+
 	}
 
 }
