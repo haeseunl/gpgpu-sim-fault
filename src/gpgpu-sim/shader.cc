@@ -854,7 +854,7 @@ void scheduler_unit::cycle()
 
     		for (unsigned int i=0; i<warp->vuln_regs.size(); i++) {
     	    	if (!m_scoreboard->checkCollisionReg(warp_id, warp->vuln_regs[i]->reg_id) && warp->vuln_regs[i]->get_avail_flag()==false) {
-    	    		printf( "[SM:%2d (w: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
+    	    		PRINT( "[SM:%2d (w: %2d) - ScoreBoard] Reg [%s] (id: %d) from [%s] is ready to use at (clk: %u | ref cnt: %d)\n"
     	    				, this->m_shader->get_sid(), warp->hd_warp_id, warp->vuln_regs[i]->name.c_str(), warp->vuln_regs[i]->reg_id, warp->vuln_regs[i]->asm_string.c_str(), tot_clk, ref_cnt);
     	    		warp->vuln_regs[i]->set_avail_flag();
     	    		warp->vuln_regs[i]->start = tot_clk-1;
@@ -2234,6 +2234,9 @@ void shader_core_ctx::register_cta_thread_exit( unsigned cta_num )
       m_n_active_cta--;
       m_barriers.deallocate_barrier(cta_num);
       shader_CTA_count_unlog(m_sid, 1);
+
+      this->GetVulnResult();
+
       printf("GPGPU-Sim uArch: Shader %d finished CTA #%d (%lld,%lld), %u CTAs running\n", m_sid, cta_num, gpu_sim_cycle, gpu_tot_sim_cycle,
              m_n_active_cta );
       if( m_n_active_cta == 0 ) {
@@ -3575,8 +3578,10 @@ unsigned simt_core_cluster::issue_block2core()
         if( m_core[core]->get_not_completed() == 0 ) {
             if( m_core[core]->get_kernel() == NULL ) {
                 kernel_info_t *k = m_gpu->select_kernel();
-                if( k ) 
-                    m_core[core]->set_kernel(k);
+                if( k )  {
+                	m_core[core]->set_kernel(k);
+                	m_core[core]->GetVulnResult();
+                }
             }
         }
         kernel_info_t *kernel = m_core[core]->get_kernel();
@@ -3838,25 +3843,38 @@ void simt_core_cluster::print_vuln_result(void)
 ///////////////////////////////////////////////////////////////////////////////
 void simt_core_cluster::GetVulnResult(void)
 {
-	unsigned long long tot_vuln = 0;
 	PRINT("===================================================\n");
 	PRINT("SIMTCluster (ID: %d)\n", this->m_cluster_id);
     for( std::list<unsigned>::iterator it = m_core_sim_order.begin(); it != m_core_sim_order.end(); ++it ) {
-    	tot_vuln = m_core[*it]->GetVulnResult();
+    	m_core[*it]->GetVulnResult();
     }
     PRINT("===================================================\n");
 }
 ///////////////////////////////////////////////////////////////////////////////
 
+void shader_core_ctx::ClrVulnInfo(void) {
 
-#define PRINT_VULN_CALC
+    for (unsigned int w=0; w<this->vuln_warp_info.size(); w++) {
+    	for (unsigned int r=0; r<this->vuln_warp_info[w]->vuln_regs.size(); r++) {
+    		delete this->vuln_warp_info[w]->vuln_regs[r];
+    	}
+    	this->vuln_warp_info[w]->vuln_regs.clear();
+    	delete this->vuln_warp_info[w];
+	}
+    this->vuln_warp_info.clear();
+}
+
+
+
+
+#define PRINT_VULN_CALC_
 #ifdef PRINT_VULN_CALC
 #define VULN_CALC(...) printf(__VA_ARGS__)
 #else
 #define VULN_CALC(...)
 #endif
 
-unsigned long long shader_core_ctx::GetVulnResult(void) {
+void shader_core_ctx::GetVulnResult(void) {
 	unsigned long long vuln_period = 0;
 	unsigned long long vuln_period_per_warp = 0;
 	unsigned long long thd_num = 32;
@@ -3867,13 +3885,13 @@ unsigned long long shader_core_ctx::GetVulnResult(void) {
     VULN_CALC( "[SM:%2d - GetVulnResult] vuln_warp_info.size(): %d (clk: %llu)\n", this->get_sid(), vuln_warp_info.size(), tot_clk);
     for (unsigned int w=0; w<this->vuln_warp_info.size(); w++) {
     	thd_num = vuln_warp_info[w]->warp_thread_cnt;
-    	VULN_CALC("  +- [%d]th warp info (# of info: %d)\n", w, vuln_warp_info[w]->vuln_regs.size());
+    	VULN_CALC("  +- [%2d]th warp info (# of info: %3d)\n", w, vuln_warp_info[w]->vuln_regs.size());
     	for (unsigned int r=0; r<this->vuln_warp_info[w]->vuln_regs.size(); r++) {
 
         	assert(this->vuln_warp_info[w]->vuln_regs[r]->end>=this->vuln_warp_info[w]->vuln_regs[r]->start);
         	vuln_period = this->vuln_warp_info[w]->vuln_regs[r]->end - this->vuln_warp_info[w]->vuln_regs[r]->start;
         	vuln_period_per_warp += vuln_period;
-        	VULN_CALC("   +- (%d)th warp [%d]th Reg name: %s (id: %d) vulnerable period: %llu [%llu - %llu]\n"
+        	VULN_CALC("   +- (%2d)th warp [%3d]th Reg name: %5s (id: %3d) vulnerable period: %7llu [%llu - %llu]\n"
     				, w, r, vuln_warp_info[w]->vuln_regs[r]->name.c_str(), vuln_warp_info[w]->vuln_regs[r]->reg_id
     				, vuln_period, vuln_warp_info[w]->vuln_regs[r]->start, vuln_warp_info[w]->vuln_regs[r]->end);
     	}
@@ -3883,7 +3901,8 @@ unsigned long long shader_core_ctx::GetVulnResult(void) {
 	tot_vuln_period += (vuln_period_per_warp*thd_num);
 	PRINT("----------------------------------------------\n");
 	gpu_tot_vuln_period += tot_vuln_period;
-	VULN_CALC("[Vulnerability] Total vulnerable period[SM: %d]: %u\n", this->get_sid(), tot_vuln_period);
+	VULN_CALC("[Vulnerability] Total vulnerable period[SM: %d]: %llu\n", this->get_sid(), tot_vuln_period);
+	VULN_CALC("[Vulnerability] GPU total vulnerable period: %llu\n", gpu_tot_vuln_period);
 }
 
 
@@ -4175,10 +4194,10 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 			vuln_reg = get_reg_info(warp_info, reg_names[r], reg_nums[r]);
 			if (vuln_reg!=NULL) {
 				if(!(inst->is_load() || inst->is_store())) {
-					vuln_reg->end = vuln_reg->start+1;
+					vuln_reg->end = tot_clk;
 				}
 				else {
-					vuln_reg->end = tot_clk;
+					vuln_reg->end = vuln_reg->start+2;
 				}
 				VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] (%d)th update info: [%s] (start: %llu | end: %llu | clk: %llu) - inst: %s\n"
 						, this->get_sid(), inst->get_m_warp_id(), r, vuln_reg->name.c_str(), vuln_reg->start, vuln_reg->end, tot_clk, inst->get_asm_str().c_str());

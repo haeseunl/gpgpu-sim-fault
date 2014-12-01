@@ -146,7 +146,7 @@ void *gpgpu_sim_thread_concurrent(void*)
 
 				/////////////////////////////////////////////////////////////////////
 				for (unsigned i=0;i<g_the_gpu->getShaderCoreConfig()->n_simt_clusters;i++) {
-					g_the_gpu->getFullSIMTCluster()[i]->GetVulnResult();
+					//g_the_gpu->getFullSIMTCluster()[i]->GetVulnResult();
 				}
 
 				FILE *ofp;

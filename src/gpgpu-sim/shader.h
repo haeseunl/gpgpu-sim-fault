@@ -1967,7 +1967,8 @@ public:
     	return ret;
     }
     void print_vuln_result(void);
-    unsigned long long GetVulnResult(void);
+    void GetVulnResult(void);
+    void ClrVulnInfo(void);
     void FindNCreateVulnInfo( warp_inst_t &inst );
     void UpdateSrcVulnInfo( warp_inst_t* inst );
     reg_info* get_reg_info(warp_vuln_info* target, std::string name, int reg_num);
