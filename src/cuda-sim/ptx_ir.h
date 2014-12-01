@@ -935,6 +935,10 @@ public:
 //   }
 
 
+   int get_m_operands_size(void) const
+   {
+      return (int)m_operands.size();
+   }
 
    const operand_info &func_addr() const
    {

@@ -3952,7 +3952,7 @@ reg_info* shader_core_ctx::get_reg_info(warp_vuln_info* target, std::string data
 
 		for (cnt=target->vuln_regs.size()-1; cnt>=0; cnt--) {
 			assert(cnt>=0);
-			if (!data.compare(target->vuln_regs[cnt]->name) && target->vuln_regs[cnt]->reg_id==reg_num) {
+			if (!data.compare(target->vuln_regs[cnt]->name) && (int)target->vuln_regs[cnt]->reg_id==reg_num) {
 				ret = target->vuln_regs[cnt];
 				break;
 			}
@@ -4135,7 +4135,7 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 	std::string tmp_name;
 	int tmp_num = 0;
 
-	if (inst->valid() && inst->get_inst_ptr()->src1().is_reg()) {
+	if (inst->valid()) {
 		warp_info = this->get_exist_warp(inst->get_m_warp_id(), inst->get_m_hw_cta_id());
 		if (warp_info!=NULL) {
 			assert (warp_info!=NULL);
@@ -4154,7 +4154,7 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 
 					for (int n=0; n<nelem; n++) {
 
-						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s(%d)] - [inst: %s] (clk: %u)\n"
+						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th vector src info: [%s(%d)] - [inst: %s] (clk: %u)\n"
 								, this->get_sid(), inst->get_m_warp_id(), n, tmp_name.c_str(), tmp_num, inst->get_asm_str().c_str(), tot_clk);
 
 						tmp_name = inst->get_inst_ptr()->src1().vec_symbol(n)->name();
@@ -4190,7 +4190,7 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 
 					for (int n=0; n<nelem; n++) {
 
-						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info (STORE): [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage (ST)] found (%d)th vector src info (STORE): [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
 
 						tmp_name = inst->get_inst_ptr()->dst().vec_symbol(n)->name();
 						tmp_num = inst->get_inst_ptr()->dst().vec_symbol(n)->reg_num();
@@ -4215,6 +4215,7 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 			}
 
 			assert(reg_names.size()==reg_nums.size());
+
 
 			for (int r=0; r<(int)reg_names.size(); r++) {
 				vuln_reg=NULL;
