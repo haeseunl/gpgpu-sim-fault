@@ -1517,11 +1517,12 @@ gpu_comp_list get_faulty_comp(void)
 //	gpu_comp_area
 //	gpu_comp_num
 
-	//gpu_comp_list active_comp_list[]={LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU, REGISTER_FILE};
-	gpu_comp_list active_comp_list[]={LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU};
+	gpu_comp_list active_comp_list[]={LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU, REGISTER_FILE};
+	//gpu_comp_list active_comp_list[]={LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU};
 	float cumulative_prob[GPU_NUM_ACTIVE_COMP];
 	float prob = 0;
 
+	srand((unsigned) time(NULL));
 	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
 		cumulative_prob[i] = (gpu_comp_area[active_comp_list[i]]*gpu_comp_num[active_comp_list[i]])/gpu_comp_area[TOT_GPU];
 

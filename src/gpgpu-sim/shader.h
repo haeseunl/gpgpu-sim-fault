@@ -94,7 +94,7 @@ public:
 	unsigned long long end;
 
 	bool is_same(std::string& name_in, int id){
-		if ((this->name.compare(name_in)==0) && (reg_id==id)) {
+		if ((this->name.compare(name_in)==0) && (reg_id==(unsigned int)id)) {
 			return true;
 		}
 		else {
@@ -1961,7 +1961,7 @@ public:
     warp_vuln_info* get_exist_warp(int wid, int cta_id);
     warp_vuln_info* get_warp_data(int wid) {
     	warp_vuln_info* ret = NULL;
-    	for (int i=0; i<this->vuln_warp_info.size(); i++) {
+    	for (int i=0; i<(int)this->vuln_warp_info.size(); i++) {
     		if (this->vuln_warp_info[i]->hd_warp_id==wid) {
     			ret = this->vuln_warp_info[i];
     		}

@@ -1318,6 +1318,7 @@ void shader_core_ctx::execute()
     // Here, store the information about the fault for next phase.
     if (check_flag) {
     	if (candidate.size()>0) {
+    		srand((unsigned) time(NULL));
         	printf(" Number of candidate: (%d) print instruction detail..\n", candidate.size());
         	printf(" Faulty component: %s\n", gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
 //    		for (int i=0; i<candidate.size(); i++) {

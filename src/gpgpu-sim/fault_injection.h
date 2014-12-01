@@ -10,7 +10,7 @@
 
 #ifdef ENABLE_FAULT_TYPE
 #define GPU_NUM_OF_COMP	 12
-#define GPU_NUM_ACTIVE_COMP	 4
+#define GPU_NUM_ACTIVE_COMP	 5
 
 #define INJECT_FAULT	1
 #define APPLY_FAULT		2
