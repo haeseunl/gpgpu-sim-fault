@@ -1082,16 +1082,6 @@ void shader_core_ctx::issue_block2core( kernel_info_t &kernel )
 {
     set_max_cta(kernel);
 
-    // Update the vulnerable period
-    //GetVulnResult();
-
-    // free the vulnerable info set.
-    //ClrVulnInfo();
-
-
-
-
-
     // find a free CTA context 
     unsigned free_cta_hw_id=(unsigned)-1;
     for (unsigned i=0;i<kernel_max_cta_per_shader;i++ ) {

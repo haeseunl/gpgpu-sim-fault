@@ -122,10 +122,12 @@ class warp_vuln_info
 public:
 	warp_vuln_info() {
 		info_cnt = 0;
+		hd_cta_id=0;
 	}
 
 	std::vector<reg_info*> vuln_regs;
 	int hd_warp_id;
+	int hd_cta_id;
 	unsigned int warp_thread_cnt;
 	unsigned int info_cnt;
 	dim3 cta_id;
@@ -1956,7 +1958,7 @@ public:
     // TODO:
     /////////////////////////////////////////////////////////////
     std::vector<warp_vuln_info*> vuln_warp_info;
-    warp_vuln_info* get_exist_warp(int wid);
+    warp_vuln_info* get_exist_warp(int wid, int cta_id);
     warp_vuln_info* get_warp_data(int wid) {
     	warp_vuln_info* ret = NULL;
     	for (int i=0; i<this->vuln_warp_info.size(); i++) {
@@ -1968,7 +1970,7 @@ public:
     }
     void print_vuln_result(void);
     void GetVulnResult(void);
-    void ClrVulnInfo(void);
+    void ClrVulnInfo(unsigned int cta_num);
     void FindNCreateVulnInfo( warp_inst_t &inst );
     void UpdateSrcVulnInfo( warp_inst_t* inst );
     reg_info* get_reg_info(warp_vuln_info* target, std::string name, int reg_num);
