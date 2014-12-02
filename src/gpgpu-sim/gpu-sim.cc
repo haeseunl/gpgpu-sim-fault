@@ -1505,11 +1505,11 @@ gpu_comp_list get_faulty_comp(void)
 			cumulative_prob[i] = cumulative_prob[i] + cumulative_prob[i-1];
 		}
 
-		//printf("cumulative_prob[%d]: %f\n", i, cumulative_prob[i]);
+
 //		printf("gpu_comp_name[%d]: %s\n", i, gpu_comp_name[active_comp_list[i]].c_str());//
 //		printf("gpu_comp_area[%d]: %f\n", i, gpu_comp_area[active_comp_list[i]]*gpu_comp_num[active_comp_list[i]]);
 //		printf("gpu_tot_area    : %f\n", tot_area);
-//		printf("cumulative_prob[%d]: %f\n\n", i, cumulative_prob[i]);
+//		printf("cumulative_prob[%d]: %f\n", i, cumulative_prob[i]);
 	}
 
 //	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
@@ -1520,16 +1520,16 @@ gpu_comp_list get_faulty_comp(void)
 
 	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
 		if (i==0) {
-			if (0<=prob && prob<=cumulative_prob[1]) {
+			if (0<=prob && prob<=cumulative_prob[0]) {
 				ret = active_comp_list[i];
-				printf("Faulty component: %s [prob: %f | ret: %d | active_comp_list[i]: %d]\n", gpu_comp_name[ret].c_str(), prob, ret, active_comp_list[i]);
+				//printf("Faulty component: %s [prob: %f | ret: %d | active_comp_list[i]: %d]\n", gpu_comp_name[ret].c_str(), prob, ret, active_comp_list[i]);
 				break;
 			}
 		}
 		else {
 			if (cumulative_prob[i-1]<prob && prob<=cumulative_prob[i]) {
 				ret = active_comp_list[i];
-				printf("Faulty component: %s [prob: %f | ret: %d | active_comp_list[i]: %d]\n", gpu_comp_name[ret].c_str(), prob, ret, active_comp_list[i]);
+				//printf("Faulty component: %s [prob: %f | ret: %d | active_comp_list[i]: %d]\n", gpu_comp_name[ret].c_str(), prob, ret, active_comp_list[i]);
 				break;
 			}
 		}
