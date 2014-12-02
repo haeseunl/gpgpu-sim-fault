@@ -4102,13 +4102,16 @@ void shader_core_ctx::FindNCreateVulnInfo( warp_inst_t &inst )
     	tmp_name = inst.get_inst_ptr()->get_pred().name();
     	tmp_num = inst.get_inst_ptr()->get_pred().reg_num();
     	vuln_reg = get_reg_info(vuln_warp, tmp_name, tmp_num);
-    	assert (vuln_reg!=NULL);
+    	//assert (vuln_reg!=NULL);
+    	if (vuln_reg!=NULL) {
+    		vuln_reg->end = tot_clk+2;
 
-		vuln_reg->end = tot_clk+2;
+    		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | start: %u | end: %u | active cnt: %u))\n"
+        			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), tmp_name.c_str(), tmp_num, tot_clk
+        			, vuln_reg->start, vuln_reg->end, inst.active_count());
+    	}
 
-		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | start: %u | end: %u | active cnt: %u))\n"
-    			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), tmp_name.c_str(), tmp_num, tot_clk
-    			, vuln_reg->start, vuln_reg->end, inst.active_count());
+
 
     }
 
