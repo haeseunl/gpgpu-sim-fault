@@ -4602,24 +4602,24 @@ ptx_reg_t srcOperandModifiers(ptx_reg_t opData, operand_info opInfo, operand_inf
 ////////////////////////////////////////////////////////////////////
 void insert_bit_flip(ptx_reg_t& dest)
 {
-	unsigned long long mask = 0;
-	int mask_shift = rand()%64;
+	unsigned int mask = 0;
+	unsigned int mask_shift = rand()%8;
 //	printf("dest(32): %u\n", dest.u32);
 //	printf("dest(32): %d\n", dest.s32);
-//	printf("dest(32): %f\n", dest.f32);
+	printf("dest(32): %f (0x%08x)\n", dest.f32, dest.u32);
 //	printf("dest(64): %u\n", dest.u64);
 //	printf("dest(64): %d\n", dest.s64);
 //	printf("dest(64): %f\n", dest.f64);
-	mask = 0x01 << mask_shift;
+	mask = 0x8000000 >> mask_shift;
 //	printf("mask_shift: %d\n", mask_shift);
 //	printf("mask      : %x\n", mask);
 
 
-	dest.u64 = dest.u64 ^ mask;
+	dest.u32 = dest.u32 ^ mask;
 
 //	printf("dest(32): %u\n", dest.u32);
 //	printf("dest(32): %d\n", dest.s32);
-//	printf("dest(32): %f\n", dest.f32);
+	printf("dest(32): %f (0x%08x)\n", dest.f32, dest.u32);
 //	printf("dest(64): %u\n", dest.u64);
 //	printf("dest(64): %d\n", dest.s64);
 //	printf("dest(64): %f\n", dest.f64);

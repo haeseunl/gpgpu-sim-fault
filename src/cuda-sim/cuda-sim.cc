@@ -1246,22 +1246,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
       }
    }
    
-   if (fault_injection_phase==2 && effective_fault_list.size()>0) {
-	   //printf("[Fault apply] It's time to apply fault!! \n");
-	   apply_fault = effective_fault_list[0]->find_match(this->get_hw_sid(), inst.pc, inst_asm_string, this->get_ctaid(), this->get_tid());
 
-	   if (apply_fault) {
-		   printf("====================================================\n");
-		   printf("[Fault apply] MATCH!! It's time to apply fault!! \n");
-		   inst.print_faulty_inst_info(tot_clk_cycle, this->get_hw_sid(), (int)effective_fault_list[0]->faulty_comp);
-		   printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", this->get_ctaid().x, this->get_ctaid().y, this->get_ctaid().z);
-		   printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", this->get_tid().x, this->get_tid().y, this->get_tid().z);
-		   printf("--------------------------------------------------\n");
-		   effective_fault_list[0]->print_fault_detail();
-		   this->set_fault_flag(1);
-		   printf("====================================================\n");
-	   }
-   }
 
 
    
@@ -1293,12 +1278,22 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    ////////////////////////////////////////////////////////
 
    if (fault_injection_phase==2 && effective_fault_list.size()>0) {
- 	  if (apply_fault) {
- 		  effective_fault_list.erase(effective_fault_list.begin());
- 		  this->set_fault_flag(0);
- 		  printf("[Fault injection] Erase applied fault...\n\n");
- 	  }
+	   //printf("[Fault apply] It's time to apply fault!! \n");
+	   apply_fault = effective_fault_list[0]->find_match(this->get_hw_sid(), inst.pc, inst_asm_string, this->get_ctaid(), this->get_tid());
+
+	   if (apply_fault) {
+		   printf("====================================================\n");
+		   printf("[Fault apply] MATCH!! It's time to apply fault!! \n");
+		   inst.print_faulty_inst_info(tot_clk_cycle, this->get_hw_sid(), (int)effective_fault_list[0]->faulty_comp);
+		   printf("  - cta_id.x: %d | cta_id.y: %d | cta_id.z: %d\n", this->get_ctaid().x, this->get_ctaid().y, this->get_ctaid().z);
+		   printf("  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", this->get_tid().x, this->get_tid().y, this->get_tid().z);
+		   printf("--------------------------------------------------\n");
+		   effective_fault_list[0]->print_fault_detail();
+		   this->set_fault_flag(1);
+
+	   }
    }
+
 
 
    if( skip ) {
@@ -1328,6 +1323,29 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
    }
    
 
+   if (fault_injection_phase==2 && effective_fault_list.size()>0) {
+	   //printf("[Fault apply] It's time to apply fault!! \n");
+	   apply_fault = effective_fault_list[0]->find_match(this->get_hw_sid(), inst.pc, inst_asm_string, this->get_ctaid(), this->get_tid());
+
+	   if (apply_fault) {
+		   printf("====================================================\n");
+	   }
+   }
+
+
+
+
+
+
+
+
+   if (fault_injection_phase==2 && effective_fault_list.size()>0) {
+ 	  if (apply_fault) {
+ 		  effective_fault_list.erase(effective_fault_list.begin());
+ 		  this->set_fault_flag(0);
+ 		  printf("[Fault injection] Erase applied fault...\n\n");
+ 	  }
+   }
 
    const gpgpu_functional_sim_config &config = m_gpu->get_config();
    
