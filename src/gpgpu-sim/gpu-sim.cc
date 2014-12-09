@@ -111,6 +111,7 @@ std::ifstream fault_injection_read;
 FILE* fault_injection_write=NULL;
 std::vector<fault*> fault_injection_list;
 std::vector<fault*> effective_fault_list;
+std::vector<fault*> reg_file_fault_list;
 
 unsigned long long gpu_tot_vuln_period = 0;
 ///////////////////////////////////////////////////////////
@@ -1467,46 +1468,13 @@ simt_core_cluster * gpgpu_sim::getSIMTCluster()
    return *m_cluster;
 }
 
+#define FAULT_PRINTF_
+#ifdef FAULT_PRINTF_
+#define PRINT_FAULT(...) printf(__VA_ARGS__)
+#else
+#define PRINT_FAULT(...)
+#endif
 
-//////////////////////////////////////////////////////////////////////
-void create_fault_list(unsigned long long base_clk) {
-	std::vector<unsigned long long> offset_clk;
-	fault* new_fault;
-	extern gpgpu_sim* g_the_gpu;
-	int faulty_comp_id;
-	int sm_number = g_the_gpu->getShaderCoreConfig()->n_simt_clusters;
-
-	fault_injection_list.clear();
-	srand((unsigned) time(NULL));
-
-	for (int i=0; i<fault_injection_number; i++) {
-		offset_clk.push_back(rand()%fault_injection_period);
-	}
-	std::sort(offset_clk.begin(), offset_clk.end());
-
-	for (int i=0; i<fault_injection_number; i++) {
-		//printf("offset_clk[%d]: %u\n", i, offset_clk[i]);
-	}
-
-	// Now create fault
-	for (int i=0; i<fault_injection_number; i++) {
-		new_fault = new fault;
-
-		new_fault->faulty_clk = base_clk + offset_clk[i];
-		new_fault->nSM = rand()%sm_number;
-		//new_fault->nSM = 1;
-		new_fault->faulty_comp = get_faulty_comp();
-		//faulty_comp_id = get_faulty_comp();
-
-		fault_injection_list.push_back(new_fault);
-
-		printf("Faulty component: [clk: %u | name: %s | sm: %d]\n", new_fault->faulty_clk, gpu_comp_name[new_fault->faulty_comp].c_str(), new_fault->nSM);
-
-
-	}
-}
-
-//////////////////////////////////////////////////////////////////////
 gpu_comp_list get_faulty_comp(void)
 {
 	gpu_comp_list ret = NONE;
@@ -1517,51 +1485,116 @@ gpu_comp_list get_faulty_comp(void)
 //	gpu_comp_area
 //	gpu_comp_num
 
-	gpu_comp_list active_comp_list[]={LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU, REGISTER_FILE};
+	gpu_comp_list active_comp_list[]={REGISTER_FILE, LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU};
 	//gpu_comp_list active_comp_list[]={LDSTR_UNIT, INT_ALU, FLOAT_ALU, SFU_ALU};
 	float cumulative_prob[GPU_NUM_ACTIVE_COMP];
 	float prob = 0;
 
-	srand((unsigned) time(NULL));
+	float tot_area = 0;
+
 	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
-		cumulative_prob[i] = (gpu_comp_area[active_comp_list[i]]*gpu_comp_num[active_comp_list[i]])/gpu_comp_area[TOT_GPU];
+		tot_area += gpu_comp_area[active_comp_list[i]]*gpu_comp_num[active_comp_list[i]];
+	}
 
-//		printf("gpu_comp_area[%d]: %f\n", i, gpu_comp_area[active_comp_list[i]]);
-//		printf("gpu_comp_num[%d] : %f\n", i, gpu_comp_num[active_comp_list[i]]);
-//		printf("gpu_comp_name[%d]: %s\n", i, gpu_comp_name[active_comp_list[i]].c_str());
-//
-//		printf("cumulative_prob[%d]: %f\n", i, cumulative_prob[i]);
+//	printf("tot_area: %f\n", tot_area);
 
-		assert(cumulative_prob[i]<1);
+	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
+		cumulative_prob[i] = (gpu_comp_area[active_comp_list[i]]*gpu_comp_num[active_comp_list[i]])/tot_area;
+
+		assert(cumulative_prob[i]<=1 && cumulative_prob[i]>0);
 		if (i>0) {
 			cumulative_prob[i] = cumulative_prob[i] + cumulative_prob[i-1];
 		}
 
-		//printf("cumulative_prob[%d]: %f\n", i, cumulative_prob[i]);
+
+//		printf("gpu_comp_name[%d]: %s\n", i, gpu_comp_name[active_comp_list[i]].c_str());//
+//		printf("gpu_comp_area[%d]: %f\n", i, gpu_comp_area[active_comp_list[i]]*gpu_comp_num[active_comp_list[i]]);
+//		printf("gpu_tot_area    : %f\n", tot_area);
+//		printf("cumulative_prob[%d]: %f\n", i, cumulative_prob[i]);
 	}
 
-	prob = ((float)(rand()%100))/100;
+//	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
+//		printf("cumulative_prob[%d]: %f\n", i, cumulative_prob[i]);
+//	}
+
+	prob = (((float)(rand()%100))/100);
 
 	for (int i=0; i<GPU_NUM_ACTIVE_COMP; i++) {
 		if (i==0) {
-			if (0<prob && prob<=cumulative_prob[i]) {
+			if (0<=prob && prob<=cumulative_prob[0]) {
 				ret = active_comp_list[i];
 				//printf("Faulty component: %s [prob: %f | ret: %d | active_comp_list[i]: %d]\n", gpu_comp_name[ret].c_str(), prob, ret, active_comp_list[i]);
+				break;
 			}
 		}
 		else {
 			if (cumulative_prob[i-1]<prob && prob<=cumulative_prob[i]) {
 				ret = active_comp_list[i];
 				//printf("Faulty component: %s [prob: %f | ret: %d | active_comp_list[i]: %d]\n", gpu_comp_name[ret].c_str(), prob, ret, active_comp_list[i]);
+				break;
 			}
 		}
 	}
 
 	if (ret==NONE) {
-		//printf("No Faulty component: [prob: %f]\n", prob);
+		PRINT_FAULT("No Faulty component: [prob: %f]\n", prob);
 	}
 	return ret;
 }
+
+
+
+//////////////////////////////////////////////////////////////////////
+void create_fault_list(unsigned long long base_clk) {
+	std::vector<unsigned long long> offset_clk;
+	fault* new_fault;
+	extern gpgpu_sim* g_the_gpu;
+	int faulty_comp_id;
+	int sm_number = g_the_gpu->getShaderCoreConfig()->n_simt_clusters;
+
+	fault_injection_list.clear();
+	//srand((unsigned) time(NULL));
+
+	for (int i=0; i<fault_injection_number; i++) {
+		offset_clk.push_back(rand()%fault_injection_period);
+	}
+	std::sort(offset_clk.begin(), offset_clk.end());
+
+//	for (int i=0; i<fault_injection_number; i++) {
+//		//printf("offset_clk[%d]: %u\n", i, offset_clk[i]);
+//	}
+
+	//printf("fault_injection_number: %d\n", fault_injection_number);
+
+#define TEST
+
+	// Now create fault
+	for (int i=0; i<fault_injection_number; i++) {
+
+		new_fault = new fault;
+		new_fault->faulty_clk = base_clk + offset_clk[i];
+
+#ifdef TEST
+		new_fault->nSM = 1;
+		new_fault->faulty_comp = REGISTER_FILE;
+#else
+		new_fault->nSM = rand()%sm_number;
+		new_fault->faulty_comp = get_faulty_comp();
+#endif
+		//new_fault->faulty_comp = get_faulty_comp();
+		//faulty_comp_id = get_faulty_comp();
+
+		//printf("Faulty component-: [clk: %u | name: %s | sm: %d]\n", new_fault->faulty_clk, gpu_comp_name[new_fault->faulty_comp].c_str(), new_fault->nSM);
+
+		fault_injection_list.push_back(new_fault);
+
+		//printf("Faulty component+: [clk: %u | name: %s | sm: %d]\n", new_fault->faulty_clk, gpu_comp_name[new_fault->faulty_comp].c_str(), new_fault->nSM);
+
+
+	}
+}
+
+//////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////
 std::string extract_string(std::string& source, std::string& base)
@@ -1671,13 +1704,25 @@ void ReadFault(std::vector<std::string>& linedata, int fault_num) {
 
 		// skip last line;
 		line_idx++;
-		effective_fault_list.push_back(new_fault);
+		if (new_fault->faulty_comp != REGISTER_FILE) {
+			effective_fault_list.push_back(new_fault);
+		}
+		else {
+			reg_file_fault_list.push_back(new_fault);
+		}
 	}
 
+	assert((effective_fault_list.size()+reg_file_fault_list.size())==fault_num);
+
 	printf("*********************************************************\n");
-	printf("[Fault injection] Total number of effective fault: %d\n", (int)effective_fault_list.size());
+	printf("[Fault injection] Total number of effective fault    : %d\n", (int)effective_fault_list.size());
+	printf("[Fault injection] Total number of register file fault: %d\n", (int)reg_file_fault_list.size());
 	for (int i=0; i<effective_fault_list.size(); i++) {
 		effective_fault_list[i]->print_fault_detail();
+	}
+
+	for (int i=0; i<reg_file_fault_list.size(); i++) {
+		reg_file_fault_list[i]->print_fault_detail();
 	}
 
 	printf("*********************************************************\n");

@@ -11,6 +11,7 @@
 #ifdef ENABLE_FAULT_TYPE
 #define GPU_NUM_OF_COMP	 12
 #define GPU_NUM_ACTIVE_COMP	 5
+#define TOT_REG_NUM_PER_SM
 
 #define INJECT_FAULT	1
 #define APPLY_FAULT		2
@@ -31,7 +32,7 @@ std::string gpu_comp_name[] = {
 	"TOT_GPU",
 	"NONE"
 };
-float gpu_comp_area[] = { 44.0291, 0.736773, 7.16208, 1.09266, 34.8379, 0.0153505, 2.52056, 29.4463, 0.833078, 0.0984577, 7.10894, 743.669 };
+float gpu_comp_area[] = { 44.0291, 0.736773, 7.16208, 1.09266, 1.8379, 0.0153505, 2.52056, 29.4463, 0.833078, 0.0984577, 7.10894, 743.669 };
 float gpu_comp_num[] = { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 1 };
 #endif
 

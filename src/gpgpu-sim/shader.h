@@ -1974,6 +1974,10 @@ public:
     void FindNCreateVulnInfo( warp_inst_t &inst );
     void UpdateSrcVulnInfo( warp_inst_t* inst );
     reg_info* get_reg_info(warp_vuln_info* target, std::string name, int reg_num);
+
+    void store_reg_file_fault_info(FILE* fp, unsigned long long clk, int sm_id, int loc);
+
+
     /////////////////////////////////////////////////////////////
 
 };

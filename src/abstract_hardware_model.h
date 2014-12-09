@@ -1211,6 +1211,16 @@ class core_t {
         unsigned m_warp_size;
         unsigned m_warp_count;
         unsigned reduction_storage[MAX_CTA_PER_SHADER][MAX_BARRIERS_PER_CTA];
+
+    public:
+        int get_tot_thread_num_in_sm(void) {
+        	return (m_warp_count * m_warp_size);
+        }
+
+        ptx_thread_info* get_ptx_thread_info(int i) {
+        	assert(i<(m_warp_count * m_warp_size));
+        	return (m_thread[i]);
+        }
 };
 
 

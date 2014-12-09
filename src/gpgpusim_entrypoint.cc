@@ -231,7 +231,7 @@ extern bool g_cuda_launch_blocking;
 
 gpgpu_sim *gpgpu_ptx_sim_init_perf()
 {
-	//srand(1);
+	srand((unsigned) time(NULL));
 
 	print_splash();
 	read_sim_environment_variables();

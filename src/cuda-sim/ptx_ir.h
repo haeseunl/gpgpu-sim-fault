@@ -263,6 +263,8 @@ public:
       return m_arch_reg_num; 
    }
    void print_info(FILE *fp) const;
+   void print_info_n_name(FILE *fp) const;
+
    unsigned uid() const { return m_uid; }
 
 private:
@@ -291,6 +293,13 @@ private:
 
    std::list<operand_info> m_initializer;
    static unsigned sm_next_uid;
+
+public:
+   ////////////////////////////////////////
+   bool is_valid_symbol(void) const { return m_reg_num_valid; }
+
+   ////////////////////////////////////////
+
 };
 
 class symbol_table {
@@ -347,6 +356,81 @@ private:
    std::list<symbol*> m_consts;
    std::map<std::string,function_info*> m_function_info_lookup;
    std::map<std::string,symbol_table*> m_function_symtab_lookup;
+
+public:
+   int get_symbols_num(void) { return m_symbols.size(); };
+
+
+//   void print_m_symbol_content() {
+//	   typedef std::map<std::string, symbol *>::iterator it_type;
+//	   int cnt=0;
+//	   for(it_type iterator = m_symbols.begin(); iterator != m_symbols.end(); iterator++) {
+//		   cnt++;
+//		   printf("(%d)th reg info: %s\n", cnt, iterator->second->name().c_str());
+//		   iterator->second->print_info(stdout);
+//	   }
+//   }
+
+   symbol *get_reg_symbol(int i)
+   {
+	   typedef std::map<std::string, symbol *>::iterator it_type;
+	   symbol *ret=NULL;
+	   int loc = i;
+	   int cnt=0;
+	   for(it_type iterator = m_symbols.begin(); iterator != m_symbols.end(); iterator++) {
+		   if (loc==cnt && iterator->second->is_reg() && iterator->second->reg_num()>0) {
+			   //iterator->second->print_info(stdout);
+			   ret = iterator->second;
+			   break;
+		   }
+
+
+		   cnt++;
+	   }
+
+	   // if target is not regs, then select first valid reg from back.
+	   if (ret==NULL) {
+		   loc=m_symbols.size()/2;
+		   cnt=0;
+		   for(it_type iterator = m_symbols.end(); iterator != m_symbols.begin(); iterator--) {
+			   if (loc==cnt && iterator->second->is_reg() && iterator->second->reg_num()>0) {
+				   //iterator->second->print_info(stdout);
+				   ret = iterator->second;
+				   break;
+			   }
+			   cnt++;
+		   }
+	   }
+
+	   assert(ret!=NULL);
+	   return ret;
+   }
+
+   void corrupt_all(ptx_thread_info* thd)
+   {
+	   typedef std::map<std::string, symbol *>::iterator it_type;
+	   symbol *ret=NULL;
+	   ptx_reg_t* target_reg;
+	   int cnt=0;
+	   for(it_type iterator = m_symbols.begin(); iterator != m_symbols.end(); iterator++) {
+		   //printf("--------------------------------------------\n");
+
+		   //iterator->second->print_info_n_name(stdout);
+		   if ( iterator->second->is_reg()==true &&  iterator->second->reg_num()>0) {
+			   target_reg = thd->get_reg_info(iterator->second);
+			   target_reg->insert_bit_flip();
+
+			   //printf("(%d)th reg: iterator->second.name: %s | value: %u\n", cnt, iterator->second->name().c_str(), target_reg->u32);
+		   }
+
+		   cnt++;
+		   //printf("--------------------------------------------\n\n");
+
+	   }
+   }
+
+
+
 };
 
 class operand_info {

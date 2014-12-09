@@ -77,6 +77,36 @@ void symbol::print_info(FILE *fp) const
       fprintf(fp," %p ", m_function );
 }
 
+void symbol::print_info_n_name(FILE *fp) const
+{
+   fprintf(fp,"name: %s, uid:%u, decl:%s, type:%p, ", this->m_name.c_str(), m_uid, m_decl_location.c_str(), m_type );
+   if( m_address_valid )
+      fprintf(fp,"<address valid>, ");
+   if( m_is_label )
+      fprintf(fp," is_label ");
+   if( m_is_shared )
+      fprintf(fp," is_shared ");
+   if( m_is_const )
+      fprintf(fp," is_const ");
+   if( m_is_global )
+      fprintf(fp," is_global ");
+   if( m_is_local )
+      fprintf(fp," is_local ");
+   if( m_is_tex )
+      fprintf(fp," is_tex ");
+   if( m_is_func_addr )
+      fprintf(fp," is_func_addr ");
+   if( m_function )
+      fprintf(fp," %p ", m_function );
+   if( is_reg() )
+	   fprintf(fp," is_reg: %d ", is_reg() );
+   if( is_valid_symbol() )
+	   fprintf(fp," is valid reg_num: %d ", m_reg_num );
+
+   fprintf(fp,"\n");
+}
+
+
 symbol_table::symbol_table() 
 { 
    assert(0); 
