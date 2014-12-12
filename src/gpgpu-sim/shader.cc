@@ -1340,7 +1340,7 @@ void shader_core_ctx::inject_fault_in_reg(void)
 		reg_file_fault_list.erase(reg_file_fault_list.begin()+0);
     }
 
-#define REG_TEST
+#define NO_REG_TEST
 #ifdef REG_TEST
     // do this on SM 1 (first SM)
     // insert and test fault by name. here use %r6
