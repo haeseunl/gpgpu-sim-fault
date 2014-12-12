@@ -152,6 +152,12 @@ union ptx_reg_t {
 		printf("dest(32): %f (%d | 0x%08x)\n", f32, u32, u32);
 
 	}
+
+	void print_status()
+	{
+		printf("dest(32): %f (%d | 0x%08x)\n", f32, u32, u32);
+	}
+
 };
 
 class ptx_instruction;
@@ -295,6 +301,7 @@ public:
    ptx_reg_t get_reg( const symbol *reg );
    ptx_reg_t* get_reg_info( symbol *reg );
    void insert_fault_in_reg( symbol *reg );
+   void print_reg_val( symbol *reg );
    ptx_reg_t get_operand_value( const operand_info &op, operand_info dstInfo, unsigned opType, ptx_thread_info *thread, int derefFlag );
    void set_operand_value( const operand_info &dst, const ptx_reg_t &data, unsigned type, ptx_thread_info *thread, const ptx_instruction *pI );
    void set_operand_value( const operand_info &dst, const ptx_reg_t &data, unsigned type, ptx_thread_info *thread, const ptx_instruction *pI, int overflow, int carry );

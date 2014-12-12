@@ -138,8 +138,29 @@ void ptx_thread_info::insert_fault_in_reg( symbol *reg ) {
 	}
 
 	regs_iter->second.insert_bit_flip();
+}
+
+void ptx_thread_info::print_reg_val( symbol *reg ) {
+	static bool unfound_register_warned = false;
+	assert( reg != NULL );
+	assert( !m_regs.empty() );
+	reg_map_t::iterator regs_iter = m_regs.back().find(reg);
+	if (regs_iter == m_regs.back().end()) {
+		assert( reg->type()->get_key().is_reg() );
+		const std::string &name = reg->name();
+		unsigned call_uid = m_callstack.back().m_call_uid;
+		ptx_reg_t uninit_reg;
+		uninit_reg.u32 = 0x0;
+		set_reg(reg, uninit_reg); // give it a value since we are going to warn the user anyway
+
+		regs_iter = m_regs.back().find(reg);
+	}
+
+	regs_iter->second.print_status();
 
 }
+
+
 
 
 

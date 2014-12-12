@@ -406,6 +406,36 @@ public:
 	   return ret;
    }
 
+
+   symbol *get_reg_symbol_by_name(std::string reg_name)
+   {
+	   typedef std::map<std::string, symbol *>::iterator it_type;
+	   symbol *ret=NULL;
+	   int cnt=0;
+	   for(it_type iterator = m_symbols.begin(); iterator != m_symbols.end(); iterator++) {
+//		   if (loc==cnt && iterator->second->is_reg() && iterator->second->reg_num()>0) {
+//			   //iterator->second->print_info(stdout);
+//			   ret = iterator->second;
+//			   break;
+//		   }
+
+		   if (!reg_name.compare(iterator->second->name())) {
+//			   printf("[DEBUG] Find reg name: %s\n", iterator->second->name().c_str());
+			   ret = iterator->second;
+			   break;
+		   }
+
+
+		   cnt++;
+	   }
+
+
+	   assert(ret!=NULL);
+	   return ret;
+   }
+
+
+
    void corrupt_all(ptx_thread_info* thd)
    {
 	   typedef std::map<std::string, symbol *>::iterator it_type;

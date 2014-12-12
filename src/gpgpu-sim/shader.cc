@@ -1396,8 +1396,6 @@ void shader_core_ctx::execute()
     ptx_reg_t* target_reg;
 
 
-
-
     if (fault_injection_phase==2 && reg_file_fault_list.size()>0 && reg_file_fault_list[0]->faulty_clk==tot_clk_cycle && reg_file_fault_list[0]->nSM==get_sid()) {
     	PRINT_REG_FAULT("Inject fault in REGISTER FILE (clk: %llu)\n", tot_clk_cycle);
 
@@ -1446,10 +1444,35 @@ void shader_core_ctx::execute()
 
 		reg_file_fault_list.erase(reg_file_fault_list.begin()+0);
     }
-
-
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////
+#define REG_TEST_
+#ifdef REG_TEST
+    // do this on SM 1 (first SM)
+    // insert and test fault by name. here use %r6
+    std::string test = "%r6";
+    curr=NULL;
+    tgt_symbol=NULL;
+    if (tot_clk_cycle==800 && this->get_sid()==1) {
+    	// use first thread
+    	curr = get_ptx_thread_info(0);
+    	if (curr!=NULL) {
+    		PRINT_REG_FAULT(" - [SM: %d] (@clk: %llu) TEST - target reg: %s\n", this->get_sid(), tot_clk_cycle, test.c_str());
+    		tgt_symbol = curr->get_symbol_table()->get_reg_symbol_by_name(test);
+    		curr->insert_fault_in_reg(tgt_symbol);
+    	}
+    }
+
+    if (tot_clk_cycle==1000 && this->get_sid()==1) {
+    	// use first thread
+    	curr = get_ptx_thread_info(0);
+    	if (curr!=NULL) {
+    		PRINT_REG_FAULT(" - [SM: %d] (@clk: %llu) TEST curr status - target reg: %s\n", this->get_sid(), tot_clk_cycle, test.c_str());
+    		tgt_symbol = curr->get_symbol_table()->get_reg_symbol_by_name(test);
+    		curr->print_reg_val(tgt_symbol);
+    	}
+    }
+#endif
+
 }
 
 void ldst_unit::print_cache_stats( FILE *fp, unsigned& dl1_accesses, unsigned& dl1_misses ) {
