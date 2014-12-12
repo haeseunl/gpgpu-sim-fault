@@ -1582,14 +1582,13 @@ void create_fault_list(unsigned long long base_clk) {
 		new_fault->nSM = rand()%sm_number;
 		new_fault->faulty_comp = get_faulty_comp();
 #endif
-		//new_fault->faulty_comp = get_faulty_comp();
-		//faulty_comp_id = get_faulty_comp();
+
 
 		//printf("Faulty component-: [clk: %u | name: %s | sm: %d]\n", new_fault->faulty_clk, gpu_comp_name[new_fault->faulty_comp].c_str(), new_fault->nSM);
 
 		fault_injection_list.push_back(new_fault);
 
-		//printf("Faulty component+: [clk: %u | name: %s | sm: %d]\n", new_fault->faulty_clk, gpu_comp_name[new_fault->faulty_comp].c_str(), new_fault->nSM);
+		printf("Faulty component: [clk: %u | name: %s | sm: %d]\n", new_fault->faulty_clk, gpu_comp_name[new_fault->faulty_comp].c_str(), new_fault->nSM);
 
 
 	}
