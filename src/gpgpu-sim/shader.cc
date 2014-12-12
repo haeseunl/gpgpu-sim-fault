@@ -1282,6 +1282,95 @@ int shader_core_ctx::test_res_bus(int latency){
 	return -1;
 }
 
+void shader_core_ctx::inject_fault_in_reg(void)
+{
+	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
+    int loc = 0;
+    int sum = 0;
+    int nFaultyReg = 0;
+    symbol *tgt_symbol=NULL;
+    ptx_thread_info* curr;
+    ptx_reg_t* target_reg;
+
+    if (fault_injection_phase==2 && reg_file_fault_list.size()>0 && reg_file_fault_list[0]->faulty_clk==tot_clk_cycle && reg_file_fault_list[0]->nSM==get_sid()) {
+
+		int tot_thread_num = this->get_tot_thread_num_in_sm();
+		// decide the location
+		//nFaultyReg = rand()%116;
+		nFaultyReg = rand()%((int)this->get_config()->gpgpu_shader_registers);
+		PRINT_REG_FAULT("Inject fault in REGISTER FILE (nFaultyReg: %d | clk: %llu)\n", nFaultyReg, tot_clk_cycle);
+
+		for (int thd=0; thd<tot_thread_num; thd++) {
+			curr = get_ptx_thread_info(thd);
+
+			if (curr!=NULL) {
+				int reg_num_per_thd = curr->get_symbol_table()->get_symbols_num();
+//				PRINT_REG_FAULT(" - [SM: %d] (%d)th thread (# of regs: %d | nFaultyReg: %d | sum: %d) \n"
+//						, this->get_sid(), thd, reg_num_per_thd, nFaultyReg, sum);
+
+				if (sum<=nFaultyReg && nFaultyReg<sum+reg_num_per_thd ) {
+					PRINT_REG_FAULT(" - [SM: %d] register file fault is injected (%d)th thread (clk: %llu | # of regs: %d | nFaultyReg: %d) \n"
+							, this->get_sid(), thd, tot_clk_cycle, reg_num_per_thd, nFaultyReg);
+					loc = nFaultyReg-sum;
+					tgt_symbol = curr->get_symbol_table()->get_reg_symbol(loc);
+					break;
+				}
+				else {
+					sum = sum+reg_num_per_thd;
+				}
+
+				//curr->get_symbol_table()->corrupt_all(curr);
+			}
+		}
+
+		if (tgt_symbol!=NULL) {
+			if (curr->get_inst()!=NULL) {
+				PRINT_REG_FAULT(" - [SM: %d] curr inst: %s | target reg: %s | uid: %d\n"
+						, this->get_sid(), curr->get_inst()->get_asm_str().c_str(), tgt_symbol->name().c_str(), tgt_symbol->uid());
+			}
+
+			//PRINT_REG_FAULT(" - [SM: %d] target reg: %s | uid: %d\n"	, this->get_sid(), tgt_symbol->name().c_str(), tgt_symbol->uid());
+
+			curr->insert_fault_in_reg(tgt_symbol);
+		}
+		else {
+			PRINT_REG_FAULT(" - [SM: %d] NO REG CORRUPTION (tot reg num: %d)\n", this->get_sid(), sum);
+		}
+
+		reg_file_fault_list.erase(reg_file_fault_list.begin()+0);
+    }
+
+#define REG_TEST
+#ifdef REG_TEST
+    // do this on SM 1 (first SM)
+    // insert and test fault by name. here use %r6
+    std::string test = "%r6";
+    curr=NULL;
+    tgt_symbol=NULL;
+    if (tot_clk_cycle==800 && this->get_sid()==1) {
+    	// use first thread
+    	curr = get_ptx_thread_info(0);
+    	if (curr!=NULL) {
+    		PRINT_REG_FAULT(" - [SM: %d] (@clk: %llu) TEST - target reg: %s\n", this->get_sid(), tot_clk_cycle, test.c_str());
+    		tgt_symbol = curr->get_symbol_table()->get_reg_symbol_by_name(test);
+    		curr->insert_fault_in_reg(tgt_symbol);
+    	}
+    }
+
+    if (tot_clk_cycle==1000 && this->get_sid()==1) {
+    	// use first thread
+    	curr = get_ptx_thread_info(0);
+    	if (curr!=NULL) {
+    		PRINT_REG_FAULT(" - [SM: %d] (@clk: %llu) TEST curr status - target reg: %s\n", this->get_sid(), tot_clk_cycle, test.c_str());
+    		tgt_symbol = curr->get_symbol_table()->get_reg_symbol_by_name(test);
+    		curr->print_reg_val(tgt_symbol);
+    	}
+    }
+#endif
+
+}
+
+
 void shader_core_ctx::execute()
 {
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -1388,90 +1477,12 @@ void shader_core_ctx::execute()
     	PRINT_FAULT("--------------------------------------------------\n\n");
     }
 
-    int loc = 0;
-    int sum = 0;
-    int nFaultyReg = 0;
-    symbol *tgt_symbol=NULL;
-    ptx_thread_info* curr;
-    ptx_reg_t* target_reg;
-
-
-    if (fault_injection_phase==2 && reg_file_fault_list.size()>0 && reg_file_fault_list[0]->faulty_clk==tot_clk_cycle && reg_file_fault_list[0]->nSM==get_sid()) {
-    	PRINT_REG_FAULT("Inject fault in REGISTER FILE (clk: %llu)\n", tot_clk_cycle);
-
-		int tot_thread_num = this->get_tot_thread_num_in_sm();
-		// decide the location
-		nFaultyReg = rand()%116;
-		//nFaultyReg = rand()%((int)this->get_config()->gpgpu_shader_registers);
-
-
-		for (int thd=0; thd<tot_thread_num; thd++) {
-			curr = get_ptx_thread_info(thd);
-
-			if (curr!=NULL) {
-				int reg_num_per_thd = curr->get_symbol_table()->get_symbols_num();
-				PRINT_REG_FAULT(" - [SM: %d] (%d)th thread (# of regs: %d | nFaultyReg: %d | sum: %d) \n"
-						, this->get_sid(), thd, reg_num_per_thd, nFaultyReg, sum);
-
-				if (sum<=nFaultyReg && nFaultyReg<sum+reg_num_per_thd ) {
-					PRINT_REG_FAULT(" - [SM: %d] register file fault is injected (%d)th thread (clk: %llu | # of regs: %d | nFaultyReg: %d) \n"
-							, this->get_sid(), thd, tot_clk_cycle, reg_num_per_thd, nFaultyReg);
-					loc = nFaultyReg-sum;
-					tgt_symbol = curr->get_symbol_table()->get_reg_symbol(loc);
-					break;
-				}
-				else {
-					sum = sum+reg_num_per_thd;
-				}
-
-				//curr->get_symbol_table()->corrupt_all(curr);
-			}
-		}
-
-		if (tgt_symbol!=NULL) {
-			if (curr->get_inst()!=NULL) {
-				PRINT_REG_FAULT(" - [SM: %d] curr inst: %s | target reg: %s | uid: %d\n"
-						, this->get_sid(), curr->get_inst()->get_asm_str().c_str(), tgt_symbol->name().c_str(), tgt_symbol->uid());
-			}
-
-			PRINT_REG_FAULT(" - [SM: %d] target reg: %s | uid: %d\n"	, this->get_sid(), tgt_symbol->name().c_str(), tgt_symbol->uid());
-
-			curr->insert_fault_in_reg(tgt_symbol);
-		}
-		else {
-			PRINT_REG_FAULT(" - [SM: %d] NO REG CORRUPTION\n"	, this->get_sid());
-		}
-
-		reg_file_fault_list.erase(reg_file_fault_list.begin()+0);
-    }
+    /////////////////////////////////////////////////////////////////////////////////
+    // Register file fault injection.
+    inject_fault_in_reg();
+    // Reg file fault injection finish.
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-#define REG_TEST_
-#ifdef REG_TEST
-    // do this on SM 1 (first SM)
-    // insert and test fault by name. here use %r6
-    std::string test = "%r6";
-    curr=NULL;
-    tgt_symbol=NULL;
-    if (tot_clk_cycle==800 && this->get_sid()==1) {
-    	// use first thread
-    	curr = get_ptx_thread_info(0);
-    	if (curr!=NULL) {
-    		PRINT_REG_FAULT(" - [SM: %d] (@clk: %llu) TEST - target reg: %s\n", this->get_sid(), tot_clk_cycle, test.c_str());
-    		tgt_symbol = curr->get_symbol_table()->get_reg_symbol_by_name(test);
-    		curr->insert_fault_in_reg(tgt_symbol);
-    	}
-    }
 
-    if (tot_clk_cycle==1000 && this->get_sid()==1) {
-    	// use first thread
-    	curr = get_ptx_thread_info(0);
-    	if (curr!=NULL) {
-    		PRINT_REG_FAULT(" - [SM: %d] (@clk: %llu) TEST curr status - target reg: %s\n", this->get_sid(), tot_clk_cycle, test.c_str());
-    		tgt_symbol = curr->get_symbol_table()->get_reg_symbol_by_name(test);
-    		curr->print_reg_val(tgt_symbol);
-    	}
-    }
-#endif
 
 }
 

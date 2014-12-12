@@ -1977,6 +1977,7 @@ public:
 
     void store_reg_file_fault_info(FILE* fp, unsigned long long clk, int sm_id, int loc);
 
+    void inject_fault_in_reg(void);
 
     /////////////////////////////////////////////////////////////
 
