@@ -1566,7 +1566,7 @@ void create_fault_list(unsigned long long base_clk) {
 
 	//printf("fault_injection_number: %d\n", fault_injection_number);
 
-#define TEST
+
 
 	// Now create fault
 	for (int i=0; i<fault_injection_number; i++) {
@@ -1574,6 +1574,7 @@ void create_fault_list(unsigned long long base_clk) {
 		new_fault = new fault;
 		new_fault->faulty_clk = base_clk + offset_clk[i];
 
+#define TEST_
 #ifdef TEST
 		new_fault->nSM = 1;
 		new_fault->faulty_comp = REGISTER_FILE;
