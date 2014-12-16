@@ -1880,11 +1880,8 @@ int check_inst_detail(warp_inst_t* m_pipeline_reg, int m_fu_n, int faulty_comp)
 			ret = 1;
 			//printf("[Fault Injection] FLOAT_ALU match!!\n");
 		}
-<<<<<<< HEAD
+
 		if ((faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP)))
-=======
-		if ((faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP || m_pipeline_reg->oprnd_type==UN_OP)) || faulty_comp==REGISTER_FILE)
->>>>>>> refs/remotes/origin/fault_injection
 		//if (faulty_comp == INT_ALU && (m_pipeline_reg->oprnd_type==INT_OP || m_pipeline_reg->oprnd_type==UN_OP))
 		{
 			ret = 1;
@@ -4253,31 +4250,16 @@ void shader_core_ctx::FindNCreateVulnInfo( warp_inst_t &inst )
     	tmp_num = inst.get_inst_ptr()->get_pred().reg_num();
     	vuln_reg = get_reg_info(vuln_warp, tmp_name, tmp_num);
     	//assert (vuln_reg!=NULL);
-<<<<<<< HEAD
-=======
-    	if (vuln_reg!=NULL) {
-    		vuln_reg->end = tot_clk+2;
->>>>>>> refs/remotes/origin/fault_injection
 
-<<<<<<< HEAD
+
+
     	if (vuln_reg!=NULL) {
     		vuln_reg->end = tot_clk+2;
-=======
+
     		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | start: %u | end: %u | active cnt: %u))\n"
         			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), tmp_name.c_str(), tmp_num, tot_clk
         			, vuln_reg->start, vuln_reg->end, inst.active_count());
     	}
->>>>>>> refs/remotes/origin/fault_injection
-
-<<<<<<< HEAD
-    		VULN_FIND( "[SM:%2d (w: %2d) - func_exec_inst] inst: [%s] has predicate instruction [%s] (id: %d) (clk: %u | start: %u | end: %u | active cnt: %u))\n"
-        			, this->get_sid(), inst.get_m_warp_id(), inst.get_asm_str().c_str(), tmp_name.c_str(), tmp_num, tot_clk
-        			, vuln_reg->start, vuln_reg->end, inst.active_count());
-    	}
-
-=======
->>>>>>> refs/remotes/origin/fault_injection
-
 
     }
 
