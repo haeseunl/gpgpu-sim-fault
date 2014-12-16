@@ -158,6 +158,20 @@ union ptx_reg_t {
 		printf("dest(32): %f (%d | 0x%08x)\n", f32, u32, u32);
 	}
 
+   void insert_bit_flip()
+   {
+   	unsigned int mask = 0;
+   	unsigned int mask_shift = rand()%8;
+
+   	printf("dest(32): %f (%d | 0x%08x)\n", f32, u32, u32);
+   	mask = 0x8000000 >> mask_shift;
+   	u32 ^= mask;
+   	printf("dest(32): %f (%d | 0x%08x)\n", f32, u32, u32);
+
+   }
+
+
+
 };
 
 class ptx_instruction;
