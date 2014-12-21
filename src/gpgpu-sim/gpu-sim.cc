@@ -109,6 +109,8 @@ unsigned long long fault_injection_clk_limit = 0;
 const char *fault_list = "FaultList.log";
 std::ifstream fault_injection_read;
 FILE* fault_injection_write=NULL;
+FILE* effective_fault_write=NULL;
+char* eff_fault_file = "effective_fault_log";
 std::vector<fault*> fault_injection_list;
 std::vector<fault*> effective_fault_list;
 std::vector<fault*> reg_file_fault_list;

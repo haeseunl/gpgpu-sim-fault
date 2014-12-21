@@ -108,6 +108,9 @@ void *gpgpu_sim_thread_concurrent(void*)
 
 		read_effective_fault_list();
 		//exit(1);
+
+		effective_fault_write = fopen("effective_fault_log", "w");
+		assert(effective_fault_write != NULL);
 	}
 
 
