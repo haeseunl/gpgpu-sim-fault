@@ -79,8 +79,8 @@ extern void read_effective_fault_list(void);
 
 extern unsigned long long gpu_tot_vuln_period;
 
-extern FILE* effective_fault_write=NULL;
-extern char* eff_fault_file = "effective_fault_log";
+extern FILE* effective_fault_write;
+extern char* eff_fault_file;
 
 ///////////////////////////////////////////////////////////
 
