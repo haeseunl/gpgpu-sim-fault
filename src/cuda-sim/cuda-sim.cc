@@ -1291,7 +1291,7 @@ void ptx_thread_info::ptx_exec_inst( warp_inst_t &inst, unsigned lane_id)
 		   effective_fault_list[0]->print_fault_detail();
 		   this->set_fault_flag(1);
 
-			fprintf(effective_fault_write, "[(@ %llu)SM: %d] fault is injected at inst [%s]\n)"
+			fprintf(effective_fault_write, "[(@ %llu) SM: %d] fault is injected at inst [%s]\n)"
 					, tot_clk_cycle, this->get_hw_sid(), inst.get_asm_str().c_str());
 	   }
    }

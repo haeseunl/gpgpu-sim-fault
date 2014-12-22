@@ -1332,7 +1332,7 @@ void shader_core_ctx::inject_fault_in_reg(void)
 			//PRINT_REG_FAULT(" - [SM: %d] target reg: %s | uid: %d\n"	, this->get_sid(), tgt_symbol->name().c_str(), tgt_symbol->uid());
 
 			if (fault_injection_phase==2) {
-				fprintf(effective_fault_write, "[(@ %llu)SM: %d] fault is injected at reg [%s] (reg_id: %d\n)", tot_clk_cycle, this->get_sid(), tgt_symbol->name().c_str(),  tgt_symbol->uid());
+				fprintf(effective_fault_write, "[(@ %llu) SM: %d] fault is injected at reg [%s] (reg_id: %d)\n", tot_clk_cycle, this->get_sid(), tgt_symbol->name().c_str(),  tgt_symbol->uid());
 			}
 
 			curr->insert_fault_in_reg(tgt_symbol);
