@@ -1615,6 +1615,16 @@ gpu_comp_list get_faulty_comp(void)
 //}
 
 
+unsigned long GetCurrTime(void)
+{
+	struct timeval tv;
+	//CLK time_val;
+
+	gettimeofday(&tv,NULL);
+	//time_val = (CLK)tv.tv_sec*SEC_TO_MICRO_SEC + (CLK)tv.tv_usec;
+	//return time_val;
+	return tv.tv_sec*(unsigned long)1000000+tv.tv_usec-base_time;
+}
 
 //////////////////////////////////////////////////////////////////////
 void create_fault_list(unsigned long long base_clk) {
@@ -1623,9 +1633,15 @@ void create_fault_list(unsigned long long base_clk) {
 	extern gpgpu_sim* g_the_gpu;
 	int faulty_comp_id;
 	int sm_number = g_the_gpu->getShaderCoreConfig()->n_simt_clusters;
+	unsigned long time = GetCurrTime();
+	unsigned int  time_ui = (unsigned int)time;
+
+	printf("[create_fault_list] time: %lu | time_ui: %ui\n", time, time_ui);
 
 	fault_injection_list.clear();
 	//srand((unsigned) time(NULL));
+	printf("")
+	srand((unsigned int)time);
 
 	for (int i=0; i<fault_injection_number; i++) {
 		offset_clk.push_back(rand()%fault_injection_period);
