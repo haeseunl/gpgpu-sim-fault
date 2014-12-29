@@ -1644,7 +1644,7 @@ void create_fault_list(unsigned long long base_clk) {
 	extern gpgpu_sim* g_the_gpu;
 	int faulty_comp_id;
 	int sm_number = g_the_gpu->getShaderCoreConfig()->n_simt_clusters;
-	unsigned int time = GetCurrTime();
+	unsigned int time = GetCurrTimeCutUint();
 
 
 	printf("[create_fault_list] time: %ui\n", time);
