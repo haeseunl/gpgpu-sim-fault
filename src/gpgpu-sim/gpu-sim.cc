@@ -73,6 +73,8 @@ class  gpgpu_sim_wrapper {};
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <sys/time.h>
+#include <limits.h>
 
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
@@ -1615,15 +1617,24 @@ gpu_comp_list get_faulty_comp(void)
 //}
 
 
-unsigned long GetCurrTime(void)
+unsigned int GetCurrTimeCutUint(void)
 {
 	struct timeval tv;
 	//CLK time_val;
+	unsigned long time;
+	unsigned long reminder;
+	unsigned int ret;
 
 	gettimeofday(&tv,NULL);
 	//time_val = (CLK)tv.tv_sec*SEC_TO_MICRO_SEC + (CLK)tv.tv_usec;
 	//return time_val;
-	return tv.tv_sec*(unsigned long)1000000+tv.tv_usec-base_time;
+	time = tv.tv_sec*(unsigned long)1000000+(unsigned long)tv.tv_usec;
+
+	reminder = time%UINT_MAX;
+
+	ret = (unsigned int)reminder;
+
+	return ret;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1633,15 +1644,15 @@ void create_fault_list(unsigned long long base_clk) {
 	extern gpgpu_sim* g_the_gpu;
 	int faulty_comp_id;
 	int sm_number = g_the_gpu->getShaderCoreConfig()->n_simt_clusters;
-	unsigned long time = GetCurrTime();
-	unsigned int  time_ui = (unsigned int)time;
+	unsigned int time = GetCurrTime();
 
-	printf("[create_fault_list] time: %lu | time_ui: %ui\n", time, time_ui);
+
+	printf("[create_fault_list] time: %ui\n", time);
 
 	fault_injection_list.clear();
 	//srand((unsigned) time(NULL));
-	printf("")
-	srand((unsigned int)time);
+
+	srand(time);
 
 	for (int i=0; i<fault_injection_number; i++) {
 		offset_clk.push_back(rand()%fault_injection_period);
