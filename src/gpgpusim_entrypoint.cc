@@ -97,6 +97,8 @@ void *gpgpu_sim_thread_concurrent(void*)
 	if (fault_injection_phase==1) {
 		fault_injection_write = fopen(fault_list, "w");
 		assert(fault_injection_write != NULL);
+		fault_generation_write = fopen(fault_gen_list, "w");
+		assert(fault_generation_write != NULL);
 	}
 
 	if (fault_injection_phase==2) {

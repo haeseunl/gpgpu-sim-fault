@@ -616,6 +616,31 @@ void shader_core_ctx::store_reg_file_fault_info(FILE* fp, unsigned long long clk
 	fprintf(fp, "-----------------------------------\n");
 }
 
+void shader_core_ctx::store_fault_info(FILE* fp, unsigned long long clk, int sm_id, int loc, std::string inst) {
+	int active_cnt = 32;
+	int target_tid = 0;
+	fprintf(fp, "-----------------------------------\n") ;
+	fprintf(fp, "- Fault detail...\n") ;
+	fprintf(fp, "- Injected time  : %u\n", clk);
+	fprintf(fp, "- SM             : %d\n", sm_id);
+	fprintf(fp, "- Faulty loc     : %d\n", loc);
+	fprintf(fp, "- PC (dec)       : %u\n", 0000);
+	fprintf(fp, "- Inst string    : %s\n", inst.c_str());
+	fprintf(fp, "- Active cnt     : %d\n", active_cnt);
+	fprintf(fp, "- Inst oprnd_type: %d\n", INT_OP);
+
+	fprintf(fp, "- cta_id.x: %d\n", 0);
+	fprintf(fp, "- cta_id.y: %d\n", 0);
+	fprintf(fp, "- cta_id.z: %d\n", 0);
+
+	// Since the current thd_id.x is the last element, calculate random thread from x axis
+	//fprintf(fp, "  - thd_id.x: %d | thd_id.y: %d | thd_id.z: %d\n", thd_id.x, thd_id.y, thd_id.z);
+
+	fprintf(fp, "- tgt_id.x: %d\n", 0);
+	fprintf(fp, "- tgt_id.y: %d\n", 0);
+	fprintf(fp, "- tgt_id.z: %d\n", 0);
+	fprintf(fp, "-----------------------------------\n");
+}
 
 #define PROGRAM_MEM_START 0xF0000000 /* should be distinct from other memory spaces...
                                         check ptx_ir.h to verify this does not overlap
@@ -1386,6 +1411,8 @@ void shader_core_ctx::execute()
 	int fault_final = 0;
 	int active_lane_num = 0;
 	unsigned long long tot_clk_cycle = gpu_sim_cycle+gpu_tot_sim_cycle;
+	std::string inst_str;
+
 	int check_flag = 0;
 	if (fault_injection_list.size()>0) {
 		if (tot_clk_cycle == fault_injection_list[0]->faulty_clk) {
@@ -1394,6 +1421,16 @@ void shader_core_ctx::execute()
 				PRINT_FAULT("[Fault injection] (SM: %d) Clock & SM match!! Inject the fault!! (SmID: %d | clk: %u | faulty-clk: %u | loc: %s)\n"
 						, this->get_sid(), fault_injection_list[0]->nSM, tot_clk_cycle, fault_injection_list[0]->faulty_clk, gpu_comp_name[fault_injection_list[0]->faulty_comp].c_str());
 				check_flag = 1;
+
+//	    		if (fault_injection_list[0]->faulty_comp==REGISTER_FILE) {
+//	    			store_reg_file_fault_info(fault_generation_write, tot_clk_cycle, this->get_sid(), fault_injection_list[0]->faulty_comp);
+//	    		}
+//	    		else {
+//	    			store_fault_info(fault_generation_write, tot_clk_cycle, this->get_sid(), fault_injection_list[0]->faulty_comp, );
+//	    		}
+
+
+				fault_injection_list[0]->print_fault_detail();
 			}
 //			else {
 //				printf("[Fault injection] (SM: %d) Clock match!! But no Component (clk: %u | faulty-clk: %u | loc: %s)\n"
@@ -1432,6 +1469,7 @@ void shader_core_ctx::execute()
         enum pipeline_stage_name_t issue_port = m_issue_port[n];
         register_set& issue_inst = m_pipeline_reg[ issue_port ];
         warp_inst_t** ready_reg = issue_inst.get_ready();
+        inst_str = (*ready_reg)->get_asm_str();
         if( issue_inst.has_ready() && m_fu[n]->can_issue( **ready_reg ) ) {
             bool schedule_wb_now = !m_fu[n]->stallable();
             int resbus = -1;
@@ -1445,12 +1483,26 @@ void shader_core_ctx::execute()
                 // stall issue (cannot reserve result bus)
             }
         }
+
+
     }
+
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     // Make a final decision for the instruction to inject a fault
     // Here, store the information about the fault for next phase.
     if (check_flag) {
+
+    	if (fault_injection_list[0]->faulty_comp==REGISTER_FILE) {
+    		store_reg_file_fault_info(fault_generation_write, tot_clk_cycle, this->get_sid(), fault_injection_list[0]->faulty_comp);
+    	}
+    	else {
+    		store_fault_info(fault_generation_write, tot_clk_cycle, this->get_sid(), fault_injection_list[0]->faulty_comp, inst_str);
+    	}
+
+
+
+
     	if (candidate.size()>0) {
     		//srand((unsigned) time(NULL));
     		PRINT_FAULT(" Number of candidate: (%d) print instruction detail..\n", candidate.size());
