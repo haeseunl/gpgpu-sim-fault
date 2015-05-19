@@ -1094,6 +1094,13 @@ public:
       assert( n < m_operands.size() );
       return m_operands[n];
    }
+
+   int operand_num( void )
+   {
+      return (int)m_operands.size();
+   }
+
+
    bool has_return() const
    {
       return m_return_var.is_valid();

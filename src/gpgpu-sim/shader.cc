@@ -4324,15 +4324,24 @@ void shader_core_ctx::UpdateSrcVulnInfo( warp_inst_t* inst )
 			else {
 				// Handle normal value
 				nelem = inst->get_in_operand_num();
-				for (int n=0; n<nelem; n++) {
-					if (inst->get_inst_ptr()->operand_lookup(n+1).is_reg() && inst->get_inst_ptr()->operand_lookup(n+1).is_valid()) {
-						VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
-						tmp_name = inst->get_inst_ptr()->operand_lookup(n+1).name();
-						tmp_num = inst->get_inst_ptr()->operand_lookup(n+1).reg_num();
-						reg_names.push_back(tmp_name);
-						reg_nums.push_back(tmp_num);
+				if (inst->get_inst_ptr()->get_opcode() != VOTE_OP) {
+					for (int n=0; n<nelem; n++) {
+						if (inst->get_inst_ptr()->operand_lookup(n+1).is_reg() && inst->get_inst_ptr()->operand_lookup(n+1).is_valid()) {
+							VULN_UPDATE("[SM:%2d (w: %2d) - Last stage] found (%d)th src info: [%s] (clk: %u)\n", this->get_sid(), inst->get_m_warp_id(), n, inst->get_asm_str().c_str(), tot_clk);
+							tmp_name = inst->get_inst_ptr()->operand_lookup(n+1).name();
+							tmp_num = inst->get_inst_ptr()->operand_lookup(n+1).reg_num();
+							reg_names.push_back(tmp_name);
+							reg_nums.push_back(tmp_num);
+						}
 					}
-
+				}
+				else {
+					tmp_name = inst->get_inst_ptr()->src1().name();
+					tmp_num = inst->get_inst_ptr()->src1().reg_num();
+					VULN_UPDATE("[SM:%2d (w: %2d) - Last stage (VOTE)] inst: %s (reg name: %s | reg id: %d)\n"
+							, this->get_sid(), inst->get_m_warp_id(), inst->get_inst_ptr()->get_asm_str().c_str(), tmp_name.c_str(), tmp_num);
+					reg_names.push_back(tmp_name);
+					reg_nums.push_back(tmp_num);
 				}
 			}
 
